@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <soap:Body>
+    <getPublicacoesResponse xmlns="http://tempuri.org/">
+      <getPublicacoesResult>
+        <publicacao>
+          <anoPublicacao>2025</anoPublicacao>
+          <codPublicacao>8579156502</codPublicacao>
+          <edicaoDiario>0</edicaoDiario>
+          <descricaoDiario>TJSCDJEN</descricaoDiario>
+          <paginaInicial>0</paginaInicial>
+          <paginaFinal>0</paginaFinal>
+          <dataPublicacao>30/09/2025</dataPublicacao>
+          <dataDivulgacao>29/09/2025</dataDivulgacao>
+          <dataCadastro>20/10/2025</dataCadastro>
+          <numeroProcesso>5006751-41.2025.8.24.0019</numeroProcesso>
+          <ufPublicacao>SC</ufPublicacao>
+          <cidadePublicacao />
+          <orgaoDescricao>DJEN - Diário de Justiça Eletrônico Nacional - TJSC</orgaoDescricao>
+          <varaDescricao>DJEN</varaDescricao>
+          <despachoPublicacao>** Revisão ** ** Revisao **</despachoPublicacao>
+          <processoPublicacao>PROCESSO: 5006751-41.2025.8.24.0019 - RECUPERACAO JUDICIAL - Recuperacao Judicial Nº 5006751-41.2025.8.24.0019/SC AUTOR: B. TRANSPORTES LTDA AUTOR: BAUER POSTOS COMERCIO DE COMBUSTIVEIS E CONVENIENCIAS LTDA</processoPublicacao>
+          <publicacaoCorrigida>0</publicacaoCorrigida>
+          <codVinculo>0</codVinculo>
+          <nomeVinculo>LIMA, CABRAL ADVOGADOS ASSOCIADOS</nomeVinculo>
+          <OABNumero>0</OABNumero>
+          <OABEstado />
+          <codIntegracao>90814250</codIntegracao>
+          <publicacaoExportada>0</publicacaoExportada>
+          <codGrupo>0</codGrupo>
+        </publicacao>
+        <publicacao>
+          <anoPublicacao>2025</anoPublicacao>
+          <codPublicacao>8579156503</codPublicacao>
+          <edicaoDiario>1</edicaoDiario>
+          <descricaoDiario>TJSCDJEN</descricaoDiario>
+          <paginaInicial>10</paginaInicial>
+          <paginaFinal>15</paginaFinal>
+          <dataPublicacao>01/10/2025</dataPublicacao>
+          <dataDivulgacao>30/09/2025</dataDivulgacao>
+          <dataCadastro>21/10/2025</dataCadastro>
+          <numeroProcesso>5006751-42.2025.8.24.0020</numeroProcesso>
+          <ufPublicacao>SC</ufPublicacao>
+          <cidadePublicacao>Florianópolis</cidadePublicacao>
+          <orgaoDescricao>TJSC - Tribunal de Justiça de Santa Catarina</orgaoDescricao>
+          <varaDescricao>1ª Vara Cível</varaDescricao>
+          <despachoPublicacao>Citação</despachoPublicacao>
+          <processoPublicacao>PROCESSO: 5006751-42.2025.8.24.0020 - AÇÃO CIVIL - Autor: João da Silva</processoPublicacao>
+          <publicacaoCorrigida>0</publicacaoCorrigida>
+          <codVinculo>1</codVinculo>
+          <nomeVinculo>Silva &amp; Souza Advogados</nomeVinculo>
+          <OABNumero>12345</OABNumero>
+          <OABEstado>SC</OABEstado>
+          <codIntegracao>90814251</codIntegracao>
+          <publicacaoExportada>0</publicacaoExportada>
+          <codGrupo>1</codGrupo>
+        </publicacao>
+        <publicacao>
+          <anoPublicacao>2025</anoPublicacao>
+          <codPublicacao>8579156502</codPublicacao>
+          <edicaoDiario>0</edicaoDiario>
+          <descricaoDiario>TJSCDJEN</descricaoDiario>
+          <paginaInicial>0</paginaInicial>
+          <paginaFinal>0</paginaFinal>
+          <dataPublicacao>30/09/2025</dataPublicacao>
+          <dataDivulgacao>29/09/2025</dataDivulgacao>
+          <dataCadastro>20/10/2025</dataCadastro>
+          <numeroProcesso>5006751-41.2025.8.24.0019</numeroProcesso>
+          <ufPublicacao>SC</ufPublicacao>
+          <cidadePublicacao />
+          <orgaoDescricao>DJEN - Diário de Justiça Eletrônico Nacional - TJSC</orgaoDescricao>
+          <varaDescricao>DJEN</varaDescricao>
+          <despachoPublicacao>** Revisão ** ** Revisao **</despachoPublicacao>
+          <processoPublicacao>PROCESSO: 5006751-41.2025.8.24.0019 - RECUPERACAO JUDICIAL - Recuperacao Judicial Nº 5006751-41.2025.8.24.0019/SC AUTOR: B. TRANSPORTES LTDA AUTOR: BAUER POSTOS COMERCIO DE COMBUSTIVEIS E CONVENIENCIAS LTDA</processoPublicacao>
+          <publicacaoCorrigida>0</publicacaoCorrigida>
+          <codVinculo>0</codVinculo>
+          <nomeVinculo>LIMA, CABRAL ADVOGADOS ASSOCIADOS</nomeVinculo>
+          <OABNumero>0</OABNumero>
+          <OABEstado />
+          <codIntegracao>90814250</codIntegracao>
+          <publicacaoExportada>0</publicacaoExportada>
+          <codGrupo>0</codGrupo>
+        </publicacao>
+        <publicacao>
+          <anoPublicacao>2025</anoPublicacao>
+          <codPublicacao>8579156504</codPublicacao>
+          <edicaoDiario>2</edicaoDiario>
+          <descricaoDiario>TJSCDJEN</descricaoDiario>
+          <paginaInicial>20</paginaInicial>
+          <paginaFinal>25</paginaFinal>
+          <dataPublicacao>02/10/2025</dataPublicacao>
+          <dataDivulgacao>01/10/2025</dataDivulgacao>
+          <dataCadastro>22/10/2025</dataCadastro>
+          <numeroProcesso>5006751-43.2025.8.24.0021</numeroProcesso>
+          <ufPublicacao>SC</ufPublicacao>
+          <cidadePublicacao>Joinville</cidadePublicacao>
+          <orgaoDescricao>TJSC - Tribunal de Justiça de Santa Catarina</orgaoDescricao>
+          <varaDescricao>2ª Vara Cível</varaDescricao>
+          <despachoPublicacao>Sentença</despachoPublicacao>
+          <processoPublicacao>PROCESSO: 5006751-43.2025.8.24.0021 - AÇÃO DE COBRANÇA - Autor: Maria Santos</processoPublicacao>
+          <publicacaoCorrigida>0</publicacaoCorrigida>
+          <codVinculo>2</codVinculo>
+          <nomeVinculo>Costa Advogados Associados</nomeVinculo>
+          <OABNumero>67890</OABNumero>
+          <OABEstado>SC</OABEstado>
+          <codIntegracao>90814252</codIntegracao>
+          <publicacaoExportada>0</publicacaoExportada>
+          <codGrupo>2</codGrupo>
+        </publicacao>
+        <publicacao>
+          <anoPublicacao>2025</anoPublicacao>
+          <codPublicacao>8579156502</codPublicacao>
+          <edicaoDiario>0</edicaoDiario>
+          <descricaoDiario>TJSCDJEN</descricaoDiario>
+          <paginaInicial>0</paginaInicial>
+          <paginaFinal>0</paginaFinal>
+          <dataPublicacao>30/09/2025</dataPublicacao>
+          <dataDivulgacao>29/09/2025</dataDivulgacao>
+          <dataCadastro>20/10/2025</dataCadastro>
+          <numeroProcesso>5006751-41.2025.8.24.0019</numeroProcesso>
+          <ufPublicacao>SC</ufPublicacao>
+          <cidadePublicacao />
+          <orgaoDescricao>DJEN - Diário de Justiça Eletrônico Nacional - TJSC</orgaoDescricao>
+          <varaDescricao>DJEN</varaDescricao>
+          <despachoPublicacao>** Revisão ** ** Revisao **</despachoPublicacao>
+          <processoPublicacao>PROCESSO: 5006751-41.2025.8.24.0019 - RECUPERACAO JUDICIAL - Recuperacao Judicial Nº 5006751-41.2025.8.24.0019/SC AUTOR: B. TRANSPORTES LTDA AUTOR: BAUER POSTOS COMERCIO DE COMBUSTIVEIS E CONVENIENCIAS LTDA</processoPublicacao>
+          <publicacaoCorrigida>0</publicacaoCorrigida>
+          <codVinculo>0</codVinculo>
+          <nomeVinculo>LIMA, CABRAL ADVOGADOS ASSOCIADOS</nomeVinculo>
+          <OABNumero>0</OABNumero>
+          <OABEstado />
+          <codIntegracao>90814250</codIntegracao>
+          <publicacaoExportada>0</publicacaoExportada>
+          <codGrupo>0</codGrupo>
+        </publicacao>
+        <publicacao>
+          <anoPublicacao>2025</anoPublicacao>
+          <codPublicacao>8579156503</codPublicacao>
+          <edicaoDiario>1</edicaoDiario>
+          <descricaoDiario>TJSCDJEN</descricaoDiario>
+          <paginaInicial>10</paginaInicial>
+          <paginaFinal>15</paginaFinal>
+          <dataPublicacao>01/10/2025</dataPublicacao>
+          <dataDivulgacao>30/09/2025</dataDivulgacao>
+          <dataCadastro>21/10/2025</dataCadastro>
+          <numeroProcesso>5006751-42.2025.8.24.0020</numeroProcesso>
+          <ufPublicacao>SC</ufPublicacao>
+          <cidadePublicacao>Florianópolis</cidadePublicacao>
+          <orgaoDescricao>TJSC - Tribunal de Justiça de Santa Catarina</orgaoDescricao>
+          <varaDescricao>1ª Vara Cível</varaDescricao>
+          <despachoPublicacao>Citação</despachoPublicacao>
+          <processoPublicacao>PROCESSO: 5006751-42.2025.8.24.0020 - AÇÃO CIVIL - Autor: João da Silva</processoPublicacao>
+          <publicacaoCorrigida>0</publicacaoCorrigida>
+          <codVinculo>1</codVinculo>
+          <nomeVinculo>Silva &amp; Souza Advogados</nomeVinculo>
+          <OABNumero>12345</OABNumero>
+          <OABEstado>SC</OABEstado>
+          <codIntegracao>90814251</codIntegracao>
+          <publicacaoExportada>0</publicacaoExportada>
+          <codGrupo>1</codGrupo>
+        </publicacao>
+      </getPublicacoesResult>
+    </getPublicacoesResponse>
+  </soap:Body>
+</soap:Envelope>

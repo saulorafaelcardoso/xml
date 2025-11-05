@@ -1,0 +1,33 @@
+# Arquivos gerados pelo processador
+relatorio_duplicatas.txt
+output_sem_duplicatas.xml
+
+# Arquivos temporários Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos XML de entrada do usuário (descomente se não quiser versionar)
+# *.xml
+# !exemplo_input.xml
