@@ -173,7 +173,7 @@ def comparar_textos_api(texto1, texto2):
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
 
         if response.status_code == 200:
             data = response.json()
@@ -502,15 +502,20 @@ class PublicacaoProcessor:
 
             return (tarefa, comparacao)
 
+        # Calcula timeout dinâmico: estimativa de tempo necessário + margem
+        # Com 5 workers e 60s por tarefa: (tarefas / workers) * 60s * 1.5 de margem
+        timeout_total = max(3600, int((len(tarefas_api) / 5) * 60 * 1.5))  # Mínimo 1 hora
+        print(f"⏱️ Timeout configurado: {timeout_total / 60:.1f} minutos")
+
         # Executa tarefas em paralelo com pool de 5 threads
         with ThreadPoolExecutor(max_workers=5) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
 
             # Coleta resultados conforme ficam prontos
-            for future in as_completed(futures, timeout=300):  # 5 minutos de timeout total
+            for future in as_completed(futures, timeout=timeout_total):
                 try:
-                    tarefa, comparacao = future.result(timeout=60)  # 60 segundos por tarefa
+                    tarefa, comparacao = future.result(timeout=120)  # 120 segundos por tarefa individual
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
