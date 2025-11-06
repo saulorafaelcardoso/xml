@@ -60,6 +60,16 @@
         <h2>📊 Relatório de Análise</h2>
         <p class="filename">Arquivo: <strong>{{ filename }}</strong></p>
 
+        {% if foi_cancelado %}
+        <div class="alert alert-warning" style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Relatório Parcial</h4>
+            <p style="margin: 0; color: #856404;">
+                O processamento foi cancelado pelo usuário. Este relatório contém apenas as comparações realizadas até o momento do cancelamento.
+                Algumas publicações duplicadas podem não ter sido analisadas pela API.
+            </p>
+        </div>
+        {% endif %}
+
         {% if tem_duplicatas %}
         <div class="summary">
             <div class="summary-item">

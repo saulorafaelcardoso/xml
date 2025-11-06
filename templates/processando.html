@@ -135,11 +135,69 @@
     <div class="progress-stats" id="progress-stats">
         Aguarde...
     </div>
+
+    <button id="btn-cancelar" class="btn-cancelar" onclick="cancelarProcessamento()">
+        ❌ Cancelar e Ver Relatório Parcial
+    </button>
 </div>
+
+<style>
+    .btn-cancelar {
+        margin-top: 30px;
+        padding: 15px 30px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+    }
+
+    .btn-cancelar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+    }
+
+    .btn-cancelar:active {
+        transform: translateY(0);
+    }
+
+    .btn-cancelar:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+</style>
 
 <script>
     const sessionId = '{{ session_id }}';
     let progressInterval = null;
+
+    function cancelarProcessamento() {
+        if (confirm('Deseja realmente cancelar o processamento e ver o relatório parcial?')) {
+            const btnCancelar = document.getElementById('btn-cancelar');
+            btnCancelar.disabled = true;
+            btnCancelar.textContent = '⏳ Cancelando...';
+
+            fetch('/cancelar?session_id=' + sessionId, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        document.getElementById('progress-message').textContent =
+                            '⚠️ Processamento cancelado! Gerando relatório parcial...';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao cancelar:', error);
+                    alert('Erro ao cancelar processamento');
+                    btnCancelar.disabled = false;
+                    btnCancelar.textContent = '❌ Cancelar e Ver Relatório Parcial';
+                });
+        }
+    }
 
     function checkProgress() {
         fetch('/progresso?session_id=' + sessionId)
@@ -148,6 +206,7 @@
                 if (data.erro) {
                     document.getElementById('progress-message').innerHTML =
                         '❌ Erro: ' + data.erro;
+                    document.getElementById('btn-cancelar').disabled = true;
                     if (progressInterval) {
                         clearInterval(progressInterval);
                     }
@@ -187,6 +246,7 @@
 
                 // Se concluído, redireciona para o relatório
                 if (data.concluido || data.porcentagem >= 100) {
+                    document.getElementById('btn-cancelar').disabled = true;
                     if (progressInterval) {
                         clearInterval(progressInterval);
                     }

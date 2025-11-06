@@ -512,17 +512,37 @@ class PublicacaoProcessor:
         print(f"⏱️ Timeout configurado: {timeout_total / 60:.1f} minutos")
 
         # Executa tarefas em paralelo com pool de 5 threads
+        cancelado = False
         with ThreadPoolExecutor(max_workers=5) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
 
             # Coleta resultados conforme ficam prontos
             for future in as_completed(futures, timeout=timeout_total):
+                # Verifica se foi cancelado
+                if self.session_id:
+                    progresso = obter_progresso(self.session_id)
+                    if progresso and progresso.get('cancelado'):
+                        print(f"\n⚠️ Processamento cancelado pelo usuário!")
+                        cancelado = True
+                        # Cancela futures pendentes
+                        for f in futures:
+                            if not f.done():
+                                f.cancel()
+                        break
+
                 try:
                     tarefa, comparacao = future.result(timeout=120)  # 120 segundos por tarefa individual
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
+
+                    # Salva relatório parcial a cada 5 comparações
+                    if self.session_id and len(resultados) % 5 == 0:
+                        relatorio_parcial = self._montar_relatorio_parcial(relatorio, resultados)
+                        with progresso_lock:
+                            progresso_global[self.session_id]['relatorio'] = relatorio_parcial
+
                 except TimeoutError:
                     print(f"⏱️ Timeout ao processar tarefa")
                 except Exception as e:
@@ -544,9 +564,40 @@ class PublicacaoProcessor:
 
         # Atualiza progresso final
         if self.session_id:
-            atualizar_progresso(self.session_id, 'Análise concluída!', total_comparacoes, total_comparacoes)
+            if cancelado:
+                atualizar_progresso(self.session_id,
+                    f'⚠️ Processamento cancelado! {len(resultados)} de {len(tarefas_api)} comparações realizadas',
+                    len(resultados), total_comparacoes)
+            else:
+                atualizar_progresso(self.session_id, 'Análise concluída!', total_comparacoes, total_comparacoes)
 
         return relatorio
+
+    def _montar_relatorio_parcial(self, relatorio_base, resultados):
+        """Monta relatório parcial com os resultados processados até o momento"""
+        # Cria uma cópia do relatório base
+        relatorio_parcial = {
+            'total_publicacoes': relatorio_base['total_publicacoes'],
+            'grupos_duplicatas': relatorio_base['grupos_duplicatas'],
+            'total_duplicadas': relatorio_base['total_duplicadas'],
+            'publicacoes_unicas': relatorio_base['publicacoes_unicas'],
+            'grupos': []
+        }
+
+        # Copia grupos e insere resultados disponíveis
+        for grupo_info in relatorio_base['grupos']:
+            grupo_copia = grupo_info.copy()
+            grupo_copia['ocorrencias'] = grupo_info['ocorrencias'].copy()
+            grupo_copia['comparacoes_api'] = []
+
+            if '_tarefas' in grupo_info:
+                for ocorrencia_num, tarefa_idx in grupo_info['_tarefas']:
+                    if tarefa_idx in resultados:
+                        grupo_copia['comparacoes_api'].append(resultados[tarefa_idx])
+
+            relatorio_parcial['grupos'].append(grupo_copia)
+
+        return relatorio_parcial
 
     def remover_duplicatas(self, output_path):
         """Remove duplicatas e gera novo XML"""
@@ -630,14 +681,22 @@ def processar_xml_background(filepath, session_id):
             traceback.print_exc()
             raise  # Re-lança para ser capturado pelo except externo
 
+        # Verifica se foi cancelado
+        progresso = obter_progresso(session_id)
+        foi_cancelado = progresso and progresso.get('cancelado', False)
+
         # Salva resultado no progresso
         with progresso_lock:
             progresso_global[session_id]['relatorio'] = relatorio
             progresso_global[session_id]['total_duplicatas'] = len(processor.duplicatas)
-            progresso_global[session_id]['concluido'] = True
+            progresso_global[session_id]['concluido'] = True  # Marca como concluído mesmo se cancelado
 
-        atualizar_progresso(session_id, 'Processamento concluído!', 100, 100)
-        print(f"✅ Processamento concluído com sucesso para sessão {session_id}")
+        if foi_cancelado:
+            atualizar_progresso(session_id, '⚠️ Relatório parcial gerado!', 100, 100)
+            print(f"⚠️ Processamento cancelado para sessão {session_id} - Relatório parcial gerado")
+        else:
+            atualizar_progresso(session_id, 'Processamento concluído!', 100, 100)
+            print(f"✅ Processamento concluído com sucesso para sessão {session_id}")
 
     except Exception as e:
         print(f"❌ Erro no processamento background: {str(e)}")
@@ -721,6 +780,7 @@ def relatorio():
     # Recupera dados salvos
     with progresso_lock:
         relatorio = progresso_global[session_id].get('relatorio')
+        foi_cancelado = progresso_global[session_id].get('cancelado', False)
         session['total_publicacoes'] = progresso_global[session_id].get('total_publicacoes', 0)
         session['total_duplicatas'] = progresso_global[session_id].get('total_duplicatas', 0)
 
@@ -731,6 +791,7 @@ def relatorio():
                          relatorio=relatorio,
                          filename=filename,
                          tem_duplicatas=(relatorio is not None),
+                         foi_cancelado=foi_cancelado,
                          session_id=session_id)
 
 
@@ -784,6 +845,23 @@ def limpar():
     session.clear()
     flash('Sessão limpa com sucesso!', 'success')
     return redirect(url_for('index'))
+
+
+@app.route('/cancelar', methods=['POST'])
+def cancelar():
+    """Cancela o processamento atual e gera relatório parcial"""
+    session_id = request.args.get('session_id') or session.get('session_id')
+
+    if not session_id:
+        return json.dumps({'erro': 'session_id não fornecido', 'sucesso': False}), 400
+
+    # Marca cancelamento
+    with progresso_lock:
+        if session_id in progresso_global:
+            progresso_global[session_id]['cancelado'] = True
+            print(f"⚠️ Cancelamento solicitado para sessão {session_id}")
+
+    return json.dumps({'sucesso': True, 'mensagem': 'Processamento será cancelado'})
 
 
 @app.route('/progresso')
