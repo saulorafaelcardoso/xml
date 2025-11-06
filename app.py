@@ -467,7 +467,7 @@ class PublicacaoProcessor:
 
             relatorio['grupos'].append(grupo_info)
 
-        # Segundo passo: Processar tarefas de API em paralelo (3 por vez)
+        # Segundo passo: Processar tarefas de API em paralelo (5 por vez)
         print(f"🚀 Iniciando processamento paralelo de {len(tarefas_api)} chamadas de API...")
 
         # Dicionário para armazenar resultados na ordem correta
