@@ -510,8 +510,6 @@ class PublicacaoProcessor:
             total_ocorrencias = tarefa['ocorrencia_total']
             comparacao_num = tarefa['comparacao_num']
 
-            print(f"🔍 Grupo {idx}, ocorrência {i}: Chamando API (processo: {chave})")
-
             # Atualiza progresso
             if self.session_id:
                 mensagem = f"📋 Processo: {chave}\n⏳ Consultando API... (Grupo {idx}/{total_grupos}, Ocorrência {i}/{total_ocorrencias})"
@@ -520,14 +518,6 @@ class PublicacaoProcessor:
             # Chama API
             comparacao = comparar_textos_api(tarefa['texto1'], tarefa['texto2'])
             comparacao['ocorrencia_comparada'] = i
-
-            # Registra resultado
-            if comparacao.get('sao_similares') == True:
-                print(f"   ✅ API: Similares (duplicata confirmada)")
-            elif comparacao.get('sao_similares') == False:
-                print(f"   ❌ API: Diferentes (NÃO é duplicata)")
-            else:
-                print(f"   ⚠️ API: Erro ou resultado indefinido")
 
             with stats_lock:
                 stats['chamadas_realizadas'] += 1
@@ -544,9 +534,17 @@ class PublicacaoProcessor:
 
         # Executa tarefas em paralelo com pool de 20 threads
         cancelado = False
+        import time
+        tempo_inicio = time.time()
+
         with ThreadPoolExecutor(max_workers=20) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
+            total_tarefas = len(tarefas_api)
+
+            print(f"\n{'='*80}")
+            print(f"🚀 INICIANDO PROCESSAMENTO PARALELO")
+            print(f"{'='*80}\n")
 
             # Coleta resultados conforme ficam prontos
             for future in as_completed(futures, timeout=timeout_total):
@@ -554,7 +552,9 @@ class PublicacaoProcessor:
                 if self.session_id:
                     progresso = obter_progresso(self.session_id)
                     if progresso and progresso.get('cancelado'):
-                        print(f"\n⚠️ Processamento cancelado pelo usuário!")
+                        print(f"\n{'='*80}")
+                        print(f"⚠️  PROCESSAMENTO CANCELADO PELO USUÁRIO")
+                        print(f"{'='*80}\n")
                         cancelado = True
                         # Cancela futures pendentes
                         for f in futures:
@@ -567,6 +567,60 @@ class PublicacaoProcessor:
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
+
+                    # Calcula estatísticas de progresso
+                    concluidas = len(resultados)
+                    porcentagem = (concluidas / total_tarefas) * 100
+                    tempo_decorrido = time.time() - tempo_inicio
+
+                    # Calcula tempo estimado restante
+                    if concluidas > 0:
+                        tempo_por_tarefa = tempo_decorrido / concluidas
+                        tarefas_restantes = total_tarefas - concluidas
+                        tempo_estimado = tempo_por_tarefa * tarefas_restantes
+                        taxa_processamento = concluidas / tempo_decorrido if tempo_decorrido > 0 else 0
+
+                        # Formata tempo estimado
+                        if tempo_estimado < 60:
+                            tempo_fmt = f"{tempo_estimado:.0f}s"
+                        else:
+                            minutos = int(tempo_estimado / 60)
+                            segundos = int(tempo_estimado % 60)
+                            tempo_fmt = f"{minutos}m{segundos}s"
+
+                        # Formata tempo decorrido
+                        if tempo_decorrido < 60:
+                            decorrido_fmt = f"{tempo_decorrido:.0f}s"
+                        else:
+                            minutos = int(tempo_decorrido / 60)
+                            segundos = int(tempo_decorrido % 60)
+                            decorrido_fmt = f"{minutos}m{segundos}s"
+
+                        # Barra de progresso visual
+                        barra_tamanho = 40
+                        barra_completa = int(barra_tamanho * porcentagem / 100)
+                        barra = '█' * barra_completa + '░' * (barra_tamanho - barra_completa)
+
+                        # Resultado da comparação
+                        if comparacao.get('sao_similares') == True:
+                            resultado_emoji = "✅"
+                            resultado_texto = "SIMILAR"
+                        elif comparacao.get('sao_similares') == False:
+                            resultado_emoji = "❌"
+                            resultado_texto = "DIFERENTE"
+                        else:
+                            resultado_emoji = "⚠️"
+                            resultado_texto = "INDEFINIDO"
+
+                        # Log detalhado de progresso
+                        print(f"\n┌{'─'*78}┐")
+                        print(f"│ 📊 PROGRESSO: {concluidas}/{total_tarefas} ({porcentagem:.1f}%) {' '*(49-len(str(concluidas))-len(str(total_tarefas)))}│")
+                        print(f"│ {barra} │")
+                        print(f"│ {resultado_emoji} Resultado: {resultado_texto:<58} │")
+                        print(f"│ ⏱️  Tempo decorrido: {decorrido_fmt:<52} │")
+                        print(f"│ ⏳ Tempo estimado restante: {tempo_fmt:<45} │")
+                        print(f"│ ⚡ Taxa: {taxa_processamento:.2f} comparações/segundo{' '*(37-len(f'{taxa_processamento:.2f}'))}│")
+                        print(f"└{'─'*78}┘")
 
                     # Salva relatório parcial a cada 5 comparações
                     if self.session_id and len(resultados) % 5 == 0:
@@ -588,10 +642,34 @@ class PublicacaoProcessor:
                 # Remove lista temporária
                 del grupo_info['_tarefas']
 
-        print(f"\n✅ Chamadas de API realizadas: {stats['chamadas_realizadas']}")
-        print(f"⏭️ Chamadas economizadas: {stats['chamadas_puladas']}")
-        print(f"💰 Economia: {(stats['chamadas_puladas'] / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%")
-        print(f"🚀 Velocidade: 20x mais rápido com processamento paralelo ultra-otimizado!\n")
+        # Resumo final
+        tempo_total = time.time() - tempo_inicio
+        if tempo_total < 60:
+            tempo_total_fmt = f"{tempo_total:.1f}s"
+        else:
+            minutos = int(tempo_total / 60)
+            segundos = int(tempo_total % 60)
+            tempo_total_fmt = f"{minutos}m{segundos}s"
+
+        taxa_final = len(resultados) / tempo_total if tempo_total > 0 else 0
+
+        print(f"\n{'='*80}")
+        print(f"✅ PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
+        print(f"{'='*80}")
+        print(f"│")
+        print(f"│ 📊 ESTATÍSTICAS FINAIS:")
+        print(f"│")
+        print(f"│   ✅ Chamadas realizadas: {stats['chamadas_realizadas']}")
+        print(f"│   ⏭️  Chamadas economizadas: {stats['chamadas_puladas']}")
+        print(f"│   💰 Economia: {(stats['chamadas_puladas'] / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%")
+        print(f"│")
+        print(f"│ ⏱️  PERFORMANCE:")
+        print(f"│")
+        print(f"│   ⏱️  Tempo total: {tempo_total_fmt}")
+        print(f"│   ⚡ Taxa média: {taxa_final:.2f} comparações/segundo")
+        print(f"│   🚀 Workers paralelos: 20 threads")
+        print(f"│")
+        print(f"{'='*80}\n")
 
         # Atualiza progresso final
         if self.session_id:
