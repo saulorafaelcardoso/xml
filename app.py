@@ -196,13 +196,13 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
 
             # Log ANTES da chamada
             inicio_chamada = time.time()
-            print(f"   📡 Chamando API (timeout: 50s)...")
+            print(f"\n   📡 CHAMANDO API /duplicidades (timeout: 50s)...")
 
             response = requests.post(API_URL, headers=headers, json=payload, timeout=50)
 
             # Log DEPOIS da chamada
             tempo_resposta = time.time() - inicio_chamada
-            print(f"   ✓ API respondeu em {tempo_resposta:.1f}s")
+            print(f"   ✅ API RESPONDEU em {tempo_resposta:.1f}s")
 
             if response.status_code == 200:
                 data = response.json()
@@ -224,12 +224,19 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
         except requests.exceptions.Timeout as e:
             ultima_excecao = e
             tempo_decorrido = time.time() - inicio_chamada
-            print(f"   ⏱️ Timeout após {tempo_decorrido:.0f}s na tentativa {tentativa}")
+            print(f"\n   {'─'*70}")
+            print(f"   ⚠️  TIMEOUT NA API! (tentativa {tentativa}/{max_tentativas})")
+            print(f"   {'─'*70}")
+            print(f"   ⏱️  Tempo decorrido: {tempo_decorrido:.1f}s (limite: 50s)")
+            print(f"   📡 Endpoint: /duplicidades")
             if tentativa < max_tentativas:
-                print(f"   ⏳ Aguardando antes de retry...")
+                print(f"   🔄 Tentando novamente...")
+                print(f"   {'─'*70}\n")
                 continue
             else:
-                print(f"   ❌ Timeout definitivo após {max_tentativas} tentativas")
+                print(f"   ❌ TIMEOUT DEFINITIVO - Todas as tentativas falharam")
+                print(f"   💡 API não respondeu em {max_tentativas} tentativas de 50s")
+                print(f"   {'─'*70}\n")
                 return {
                     'sucesso': False,
                     'erro': f'Timeout após {max_tentativas} tentativas (50s cada)',
@@ -532,9 +539,13 @@ class PublicacaoProcessor:
 
             relatorio['grupos'].append(grupo_info)
 
-        # Segundo passo: Processar tarefas de API em paralelo (10 por vez - OTIMIZADO!)
-        print(f"🚀 Iniciando processamento paralelo de {len(tarefas_api)} chamadas de API...")
-        print(f"⚡ 10 requisições simultâneas (otimizado para evitar sobrecarga)")
+        # Segundo passo: Processar tarefas de API em paralelo (5 por vez - OTIMIZADO!)
+        print(f"\n{'='*80}")
+        print(f"🚀 PREPARANDO PROCESSAMENTO PARALELO")
+        print(f"{'='*80}")
+        print(f"📊 Total de chamadas API necessárias: {len(tarefas_api)}")
+        print(f"⚡ Workers simultâneos: 5 (otimizado para evitar sobrecarga)")
+        print(f"{'='*80}")
 
         # Dicionário para armazenar resultados na ordem correta
         resultados = {}
@@ -547,6 +558,14 @@ class PublicacaoProcessor:
             total_grupos = tarefa['grupo_total']
             total_ocorrencias = tarefa['ocorrencia_total']
             comparacao_num = tarefa['comparacao_num']
+
+            # Log de início da tarefa
+            print(f"\n{'─'*80}")
+            print(f"🔍 INICIANDO COMPARAÇÃO #{comparacao_num}/{total_comparacoes}")
+            print(f"{'─'*80}")
+            print(f"📋 Processo: {chave}")
+            print(f"👥 Grupo {idx}/{total_grupos}, Ocorrência {i}/{total_ocorrencias}")
+            print(f"{'─'*80}")
 
             # Atualiza progresso
             if self.session_id:
@@ -563,19 +582,25 @@ class PublicacaoProcessor:
             return (tarefa, comparacao)
 
         # Calcula timeout dinâmico: estimativa de tempo necessário + margem
-        # Com 10 workers e 50s por tentativa * 2 tentativas + backoff = 110s por tarefa
+        # Com 5 workers e 50s por tentativa * 2 tentativas + backoff = 110s por tarefa
         # Tempo estimado: (tarefas / workers) * 110s * 1.3 de margem
-        timeout_total = max(3600, int((len(tarefas_api) / 10) * 110 * 1.3))  # Mínimo 1 hora
-        print(f"⏱️ Timeout total configurado: {timeout_total / 60:.1f} minutos")
-        print(f"⏱️ Timeout por tarefa: 120s (2 tentativas de 50s + backoff + margem)")
-        print(f"🚀 Workers paralelos: 10 (otimizado para evitar sobrecarga na API)")
+        timeout_total = max(3600, int((len(tarefas_api) / 5) * 110 * 1.3))  # Mínimo 1 hora
+        print(f"\n{'='*80}")
+        print(f"⚙️  CONFIGURAÇÃO DO PROCESSAMENTO")
+        print(f"{'='*80}")
+        print(f"🚀 Workers paralelos: 5")
+        print(f"⏱️  Timeout por chamada API: 50s")
+        print(f"🔄 Tentativas por comparação: 2 (com backoff exponencial)")
+        print(f"⏱️  Timeout total estimado: {timeout_total / 60:.1f} minutos")
+        print(f"📊 Total de comparações: {len(tarefas_api)}")
+        print(f"{'='*80}\n")
 
-        # Executa tarefas em paralelo com pool de 10 threads
+        # Executa tarefas em paralelo com pool de 5 threads
         cancelado = False
         import time
         tempo_inicio = time.time()
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
             total_tarefas = len(tarefas_api)
@@ -682,9 +707,23 @@ class PublicacaoProcessor:
                             progresso_global[self.session_id]['relatorio'] = relatorio_parcial
 
                 except TimeoutError:
-                    print(f"⏱️ Timeout ao processar tarefa")
+                    concluidas = len(resultados)
+                    print(f"\n{'='*80}")
+                    print(f"⚠️  TIMEOUT DETECTADO!")
+                    print(f"{'='*80}")
+                    print(f"│ 📊 Progresso: {concluidas}/{total_tarefas} ({(concluidas/total_tarefas*100):.1f}%)")
+                    print(f"│ ⏱️  A tarefa não respondeu dentro do limite de 5s")
+                    print(f"│ 💡 Possível causa: API travou ou está muito lenta")
+                    print(f"{'='*80}\n")
                 except Exception as e:
-                    print(f"❌ Erro ao processar tarefa: {str(e)}")
+                    concluidas = len(resultados)
+                    print(f"\n{'='*80}")
+                    print(f"❌ ERRO DETECTADO!")
+                    print(f"{'='*80}")
+                    print(f"│ 📊 Progresso: {concluidas}/{total_tarefas} ({(concluidas/total_tarefas*100):.1f}%)")
+                    print(f"│ ⚠️  Tipo: {type(e).__name__}")
+                    print(f"│ 💬 Mensagem: {str(e)}")
+                    print(f"{'='*80}\n")
 
         # Terceiro passo: Inserir resultados na ordem correta nos grupos (pula se cancelado)
         if not cancelado:
