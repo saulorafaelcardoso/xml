@@ -41,11 +41,65 @@ class PublicacaoProcessor:
     def carregar_xml(self):
         """Carrega o arquivo XML"""
         try:
+            # Tenta carregar normalmente
             self.tree = ET.parse(self.xml_path)
             self.root = self.tree.getroot()
             return True, "XML carregado com sucesso"
+        except ET.ParseError as e:
+            # Erro de parsing - tenta diagnosticar
+            erro_msg = str(e)
+
+            # Tenta identificar o problema
+            try:
+                with open(self.xml_path, 'r', encoding='utf-8', errors='replace') as f:
+                    conteudo = f.read()
+
+                # Verifica tamanho
+                if len(conteudo) == 0:
+                    return False, "Arquivo XML está vazio"
+
+                # Extrai linha e coluna do erro
+                import re
+                match = re.search(r'line (\d+), column (\d+)', erro_msg)
+                if match:
+                    linha = int(match.group(1))
+                    coluna = int(match.group(2))
+
+                    # Pega contexto do erro
+                    linhas = conteudo.split('\n')
+                    if linha <= len(linhas):
+                        linha_erro = linhas[linha - 1]
+                        if coluna <= len(linha_erro):
+                            inicio = max(0, coluna - 50)
+                            fim = min(len(linha_erro), coluna + 50)
+                            contexto = linha_erro[inicio:fim]
+                            char_problema = linha_erro[coluna - 1] if coluna > 0 else '?'
+
+                            char_code = ord(char_problema) if char_problema != '?' else 0
+
+                            return False, (
+                                f"Erro de formatação XML (Linha {linha}, Coluna {coluna}):\n\n"
+                                f"Caractere problemático: '{char_problema}' (código ASCII/Unicode: {char_code})\n\n"
+                                f"Contexto:\n...{contexto}...\n\n"
+                                f"Possíveis causas:\n"
+                                f"• Caracteres especiais não escapados (&, <, >, ', \")\n"
+                                f"• Caracteres de controle inválidos (ASCII < 32)\n"
+                                f"• Entidades HTML não reconhecidas (&nbsp;, &copy;, etc)\n"
+                                f"• Problema de encoding (arquivo não está em UTF-8)\n\n"
+                                f"Sugestões:\n"
+                                f"1. Verifique o encoding do arquivo (deve ser UTF-8)\n"
+                                f"2. Substitua & por &amp;, < por &lt;, > por &gt;\n"
+                                f"3. Remova caracteres de controle inválidos\n"
+                                f"4. Use um validador XML online para identificar todos os erros"
+                            )
+
+                return False, f"Erro ao processar XML: {erro_msg}"
+
+            except Exception as diag_e:
+                return False, f"Erro ao carregar XML: {erro_msg}"
+
         except Exception as e:
-            return False, f"Erro ao carregar XML: {str(e)}"
+            return False, f"Erro inesperado ao carregar XML: {str(e)}"
 
     def extrair_publicacoes(self):
         """Extrai todas as publicações do XML"""
