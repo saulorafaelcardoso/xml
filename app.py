@@ -502,8 +502,8 @@ class PublicacaoProcessor:
 
             return (tarefa, comparacao)
 
-        # Executa tarefas em paralelo com pool de 3 threads
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        # Executa tarefas em paralelo com pool de 10 threads
+        with ThreadPoolExecutor(max_workers=10) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
 
