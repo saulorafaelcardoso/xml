@@ -163,6 +163,9 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
     Compara dois textos usando a API de duplicidades com retry automático
     Retorna: dict com analise_juridica, interpretacao, sao_similares
     """
+    import time
+    import random
+
     API_URL = 'http://extracao-rtx.corejur.com.br:5000/duplicidades'
     TOKEN = 'Bearer 2390*Corejur*)23dads'
 
@@ -178,13 +181,20 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
 
     ultima_excecao = None
 
-    # Tenta até max_tentativas vezes
+    # Tenta até max_tentativas vezes com backoff exponencial
     for tentativa in range(1, max_tentativas + 1):
         try:
             if tentativa > 1:
+                # Backoff exponencial: 2s, 4s, 8s...
+                tempo_espera = 2 ** (tentativa - 1)
+                print(f"   ⏳ Aguardando {tempo_espera}s antes de tentar novamente...")
+                time.sleep(tempo_espera)
                 print(f"   🔄 Tentativa {tentativa}/{max_tentativas}...")
 
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=90)
+            # Pequeno delay aleatório para evitar sobrecarga simultânea
+            time.sleep(random.uniform(0.1, 0.5))
+
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
 
             if response.status_code == 200:
                 data = response.json()
@@ -205,21 +215,38 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
         except requests.exceptions.Timeout as e:
             ultima_excecao = e
             if tentativa < max_tentativas:
-                print(f"   ⏱️ Timeout na tentativa {tentativa}, tentando novamente...")
+                print(f"   ⏱️ Timeout na tentativa {tentativa}, aguardando antes de retry...")
                 continue
             else:
                 print(f"   ❌ Timeout após {max_tentativas} tentativas")
                 return {
                     'sucesso': False,
-                    'erro': f'Timeout após {max_tentativas} tentativas (90s cada)',
+                    'erro': f'Timeout após {max_tentativas} tentativas (120s cada)',
                     'analise_juridica': 'Timeout',
                     'interpretacao': f'API não respondeu após {max_tentativas} tentativas',
+                    'sao_similares': None
+                }
+        except requests.exceptions.ConnectionError as e:
+            ultima_excecao = e
+            print(f"   ❌ Erro de conexão na tentativa {tentativa}: API recusou conexão")
+            if tentativa < max_tentativas:
+                tempo_espera = 3 * tentativa  # Espera mais em caso de connection refused
+                print(f"   ⏳ Aguardando {tempo_espera}s (API pode estar sobrecarregada)...")
+                time.sleep(tempo_espera)
+                continue
+            else:
+                return {
+                    'sucesso': False,
+                    'erro': 'API recusou conexão (sobrecarga ou rate limiting)',
+                    'analise_juridica': 'Erro de Conexão',
+                    'interpretacao': 'API recusou conexão - servidor sobrecarregado',
                     'sao_similares': None
                 }
         except Exception as e:
             ultima_excecao = e
             print(f"   ❌ Erro na tentativa {tentativa}: {str(e)}")
             if tentativa < max_tentativas:
+                time.sleep(2)
                 continue
             else:
                 return {
@@ -383,7 +410,7 @@ class PublicacaoProcessor:
         print(f"\n📊 Total de grupos de duplicatas: {len(self.duplicatas)}")
         print(f"📊 Total de comparações necessárias: {total_comparacoes}")
         print(f"💰 Chamadas de API previstas: {total_comparacoes}")
-        print(f"🚀 Processamento paralelo: 20 análises simultâneas (ULTRA-RÁPIDO!)\n")
+        print(f"🚀 Processamento paralelo: 10 análises simultâneas (otimizado!)\n")
 
         # Atualiza progresso inicial
         if self.session_id:
@@ -494,9 +521,9 @@ class PublicacaoProcessor:
 
             relatorio['grupos'].append(grupo_info)
 
-        # Segundo passo: Processar tarefas de API em paralelo (20 por vez - ULTRA-RÁPIDO!)
+        # Segundo passo: Processar tarefas de API em paralelo (10 por vez - OTIMIZADO!)
         print(f"🚀 Iniciando processamento paralelo de {len(tarefas_api)} chamadas de API...")
-        print(f"⚡ 20 requisições simultâneas para máxima velocidade!")
+        print(f"⚡ 10 requisições simultâneas (otimizado para evitar sobrecarga)")
 
         # Dicionário para armazenar resultados na ordem correta
         resultados = {}
@@ -525,19 +552,19 @@ class PublicacaoProcessor:
             return (tarefa, comparacao)
 
         # Calcula timeout dinâmico: estimativa de tempo necessário + margem
-        # Com 20 workers e 90s por tentativa * 2 tentativas = 180s por tarefa
-        # Tempo estimado: (tarefas / workers) * 180s * 1.2 de margem
-        timeout_total = max(3600, int((len(tarefas_api) / 20) * 180 * 1.2))  # Mínimo 1 hora
+        # Com 10 workers e 120s por tentativa * 2 tentativas + backoff = 260s por tarefa
+        # Tempo estimado: (tarefas / workers) * 260s * 1.3 de margem
+        timeout_total = max(3600, int((len(tarefas_api) / 10) * 260 * 1.3))  # Mínimo 1 hora
         print(f"⏱️ Timeout total configurado: {timeout_total / 60:.1f} minutos")
-        print(f"⏱️ Timeout por tarefa: 200s (2 tentativas de 90s + margem)")
-        print(f"🚀 Workers paralelos: 20 (processamento ultra-rápido!)")
+        print(f"⏱️ Timeout por tarefa: 300s (2 tentativas de 120s + backoff + margem)")
+        print(f"🚀 Workers paralelos: 10 (otimizado para evitar sobrecarga na API)")
 
-        # Executa tarefas em paralelo com pool de 20 threads
+        # Executa tarefas em paralelo com pool de 10 threads
         cancelado = False
         import time
         tempo_inicio = time.time()
 
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
             total_tarefas = len(tarefas_api)
@@ -563,7 +590,7 @@ class PublicacaoProcessor:
                         break
 
                 try:
-                    tarefa, comparacao = future.result(timeout=200)  # 200 segundos por tarefa (2 tentativas de 90s)
+                    tarefa, comparacao = future.result(timeout=300)  # 300 segundos por tarefa (2 tentativas de 120s + backoff)
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
@@ -667,7 +694,7 @@ class PublicacaoProcessor:
         print(f"│")
         print(f"│   ⏱️  Tempo total: {tempo_total_fmt}")
         print(f"│   ⚡ Taxa média: {taxa_final:.2f} comparações/segundo")
-        print(f"│   🚀 Workers paralelos: 20 threads")
+        print(f"│   🚀 Workers paralelos: 10 threads")
         print(f"│")
         print(f"{'='*80}\n")
 
