@@ -9,6 +9,29 @@ import sys
 import re
 
 
+def detectar_encoding(filepath):
+    """
+    Detecta o encoding do arquivo testando vários encodings
+    """
+    encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'iso-8859-1', 'windows-1252', 'cp1252']
+
+    for encoding in encodings:
+        try:
+            with open(filepath, 'r', encoding=encoding) as f:
+                conteudo = f.read()
+
+            # Verifica se há caracteres de substituição (�)
+            if '�' not in conteudo:
+                return encoding, conteudo
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+
+    # Se nenhum funcionou, usa UTF-8 com replace
+    print("⚠️  Não foi possível detectar encoding automaticamente, usando UTF-8 com substituição")
+    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+        return 'utf-8 (com erros)', f.read()
+
+
 def limpar_xml(input_path, output_path=None):
     """
     Limpa um arquivo XML removendo caracteres inválidos
@@ -18,20 +41,22 @@ def limpar_xml(input_path, output_path=None):
 
     print(f"🔍 Lendo arquivo: {input_path}")
 
-    try:
-        # Lê o arquivo com encoding UTF-8
-        with open(input_path, 'r', encoding='utf-8', errors='replace') as f:
-            conteudo = f.read()
-    except UnicodeDecodeError:
-        # Tenta com latin-1 se UTF-8 falhar
-        print("⚠️  Erro com UTF-8, tentando latin-1...")
-        with open(input_path, 'r', encoding='latin-1') as f:
-            conteudo = f.read()
+    # Detecta encoding automaticamente
+    print("📡 Detectando encoding...")
+    encoding_detectado, conteudo = detectar_encoding(input_path)
+    print(f"✅ Encoding detectado: {encoding_detectado}")
+
+    # Verifica se ainda há caracteres de substituição
+    if '�' in conteudo:
+        print("⚠️  AVISO: Arquivo contém caracteres corrompidos (�)")
+        print("   Isso geralmente indica um problema de encoding na origem")
+        problemas = [f"Arquivo tem problema de encoding (detectado: {encoding_detectado})"]
+    else:
+        problemas = []
 
     print(f"📏 Tamanho original: {len(conteudo)} caracteres")
 
     conteudo_original = conteudo
-    problemas = []
 
     # 1. Remove caracteres de controle inválidos (exceto \n, \r, \t)
     print("🧹 Removendo caracteres de controle inválidos...")
