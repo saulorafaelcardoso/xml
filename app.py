@@ -688,6 +688,11 @@ def relatorio():
     progresso = obter_progresso(session_id)
 
     if not progresso or not progresso.get('concluido'):
+        # Verifica se houve erro durante o processamento
+        if progresso and progresso.get('erro'):
+            flash(f'Erro no processamento: {progresso.get("erro")}', 'error')
+            return redirect(url_for('index'))
+        # Se não tem erro, ainda está processando
         flash('Processamento ainda não foi concluído', 'warning')
         return redirect(url_for('processando'))
 
