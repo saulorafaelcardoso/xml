@@ -1,6 +1,11 @@
 # Arquivos gerados pelo processador
 relatorio_duplicatas.txt
 output_sem_duplicatas.xml
+uploads/
+
+# Flask
+instance/
+.webassets-cache
 
 # Arquivos temporários Python
 __pycache__/

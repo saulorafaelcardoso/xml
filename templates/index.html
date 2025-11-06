@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="upload-section">
+    <div class="card">
+        <h2>📤 Upload de Arquivo XML</h2>
+        <p>Envie seu arquivo XML SOAP de publicações para análise</p>
+
+        <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+            <div class="file-input-wrapper">
+                <input type="file" name="file" id="file" accept=".xml" required>
+                <label for="file" class="file-label">
+                    <span class="file-icon">📁</span>
+                    <span class="file-text">Escolher arquivo XML</span>
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <span>🔍</span> Processar Arquivo
+            </button>
+        </form>
+    </div>
+
+    <div class="info-section">
+        <h3>ℹ️ Como funciona:</h3>
+        <ol>
+            <li><strong>Upload:</strong> Envie seu arquivo XML SOAP de publicações</li>
+            <li><strong>Análise:</strong> O sistema identifica publicações duplicadas baseado em:
+                <ul>
+                    <li>Número do processo</li>
+                    <li>Data de publicação</li>
+                    <li>Ano de publicação</li>
+                    <li>Código de publicação</li>
+                </ul>
+            </li>
+            <li><strong>Relatório:</strong> Visualize todas as duplicatas encontradas</li>
+            <li><strong>Download:</strong> Baixe o XML sem duplicatas (mantém apenas a primeira ocorrência)</li>
+        </ol>
+
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">✅</span>
+                <span>Sem instalação necessária</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">🔒</span>
+                <span>Processamento local</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">⚡</span>
+                <span>Rápido e eficiente</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">📊</span>
+                <span>Relatório detalhado</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

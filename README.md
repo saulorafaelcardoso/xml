@@ -2,6 +2,10 @@
 
 Sistema para processar arquivos XML SOAP de publicações, identificar duplicatas e gerar relatórios e arquivos limpos.
 
+**Disponível em duas versões:**
+- 🌐 **Aplicação Web** (recomendado) - Interface gráfica acessível pelo navegador
+- 💻 **Linha de Comando** - Script Python para uso via terminal
+
 ## 📋 Funcionalidades
 
 1. **Leitura de XML SOAP**: Processa arquivos XML no formato SOAP com publicações
@@ -10,23 +14,49 @@ Sistema para processar arquivos XML SOAP de publicações, identificar duplicata
    - Data de Publicação
    - Ano de Publicação
    - Código de Publicação
-3. **Relatório Detalhado**: Gera relatório em texto com todas as duplicatas encontradas
+3. **Relatório Detalhado**: Gera relatório com todas as duplicatas encontradas
 4. **Remoção de Duplicatas**: Cria novo XML sem as duplicatas (mantendo apenas a primeira ocorrência)
 
 ## 🚀 Como Usar
 
-### 1. Requisitos
+### 🌐 Aplicação Web (Recomendado)
+
+#### 1. Instalar dependências
+
+```bash
+pip install -r requirements.txt
+```
+
+#### 2. Iniciar o servidor
+
+```bash
+python app.py
+```
+
+#### 3. Acessar no navegador
+
+Abra seu navegador e acesse:
+- `http://localhost:54129`
+- ou `http://127.0.0.1:54129`
+
+#### 4. Usar a interface
+
+1. **Upload**: Clique e selecione seu arquivo XML
+2. **Análise**: O sistema processa automaticamente e mostra o relatório
+3. **Download**: Clique em "Baixar XML Sem Duplicatas" para obter o arquivo limpo
+
+---
+
+### 💻 Linha de Comando
+
+#### 1. Requisitos
 
 - Python 3.6 ou superior
 - Nenhuma biblioteca externa necessária (usa apenas bibliotecas padrão do Python)
 
-### 2. Instalação
+#### 2. Uso Básico
 
-Não é necessária instalação. Basta clonar ou baixar os arquivos.
-
-### 3. Uso Básico
-
-#### Gerar apenas o relatório de duplicatas:
+**Gerar apenas o relatório de duplicatas:**
 
 ```bash
 python xml_processor.py arquivo.xml
@@ -37,7 +67,7 @@ Isso irá:
 - Identificar duplicatas
 - Gerar o arquivo `relatorio_duplicatas.txt`
 
-#### Gerar relatório e XML sem duplicatas:
+**Gerar relatório e XML sem duplicatas:**
 
 ```bash
 python xml_processor.py arquivo.xml --remover-duplicatas
@@ -50,7 +80,7 @@ Isso irá:
 - Solicitar confirmação do usuário
 - Gerar o arquivo `output_sem_duplicatas.xml` (após confirmação)
 
-### 4. Exemplo com Arquivo de Teste
+#### 3. Exemplo com Arquivo de Teste
 
 ```bash
 # Apenas relatório
@@ -144,11 +174,21 @@ PROCESSAMENTO CONCLUÍDO
 
 ```
 xml/
-├── xml_processor.py           # Script principal
+├── app.py                     # Aplicação web Flask (porta 54129)
+├── xml_processor.py           # Script linha de comando
+├── requirements.txt           # Dependências Python
 ├── exemplo_input.xml          # Arquivo XML de exemplo (com duplicatas)
 ├── README.md                  # Esta documentação
-├── relatorio_duplicatas.txt   # Relatório gerado (após execução)
-└── output_sem_duplicatas.xml  # XML limpo gerado (após confirmação)
+├── templates/                 # Templates HTML
+│   ├── base.html             # Template base
+│   ├── index.html            # Página inicial
+│   └── relatorio.html        # Página de relatório
+├── static/                    # Arquivos estáticos
+│   └── css/
+│       └── style.css         # Estilos CSS
+├── uploads/                   # Pasta para uploads (criada automaticamente)
+├── relatorio_duplicatas.txt   # Relatório gerado (CLI)
+└── output_sem_duplicatas.xml  # XML limpo gerado (CLI)
 ```
 
 ## 🔧 Personalização

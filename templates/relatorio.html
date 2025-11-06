@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório de Duplicatas - Processador XML SOAP{% endblock %}
+
+{% block content %}
+<div class="relatorio-section">
+    <div class="actions">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <span>⬅️</span> Novo Arquivo
+        </a>
+        {% if tem_duplicatas %}
+        <a href="{{ url_for('download') }}" class="btn btn-success">
+            <span>💾</span> Baixar XML Sem Duplicatas
+        </a>
+        {% endif %}
+        <a href="{{ url_for('limpar') }}" class="btn btn-danger">
+            <span>🗑️</span> Limpar
+        </a>
+    </div>
+
+    <div class="card">
+        <h2>📊 Relatório de Análise</h2>
+        <p class="filename">Arquivo: <strong>{{ filename }}</strong></p>
+
+        {% if tem_duplicatas %}
+        <div class="summary">
+            <div class="summary-item">
+                <span class="summary-label">Total de Publicações:</span>
+                <span class="summary-value">{{ relatorio.total_publicacoes }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Grupos de Duplicatas:</span>
+                <span class="summary-value highlight-warning">{{ relatorio.grupos_duplicatas }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Publicações Duplicadas:</span>
+                <span class="summary-value highlight-danger">{{ relatorio.total_duplicadas }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">Publicações Únicas (após limpeza):</span>
+                <span class="summary-value highlight-success">{{ relatorio.publicacoes_unicas }}</span>
+            </div>
+        </div>
+
+        <div class="duplicatas">
+            <h3>🔍 Detalhes das Duplicatas</h3>
+
+            {% for grupo in relatorio.grupos %}
+            <div class="duplicata-grupo">
+                <div class="grupo-header">
+                    <h4>Grupo de Duplicatas #{{ grupo.numero }}</h4>
+                    <span class="badge">{{ grupo.quantidade }} ocorrências</span>
+                </div>
+
+                <div class="grupo-info">
+                    <div class="info-row">
+                        <strong>Número do Processo:</strong> {{ grupo.numero_processo }}
+                    </div>
+                    <div class="info-row">
+                        <strong>Data de Publicação:</strong> {{ grupo.data_publicacao }}
+                    </div>
+                    <div class="info-row">
+                        <strong>Ano de Publicação:</strong> {{ grupo.ano_publicacao }}
+                    </div>
+                    <div class="info-row">
+                        <strong>Código de Publicação:</strong> {{ grupo.cod_publicacao }}
+                    </div>
+                </div>
+
+                <div class="ocorrencias">
+                    {% for ocorrencia in grupo.ocorrencias %}
+                    <div class="ocorrencia {% if ocorrencia.numero == 1 %}ocorrencia-manter{% else %}ocorrencia-remover{% endif %}">
+                        <div class="ocorrencia-header">
+                            <span class="ocorrencia-numero">Ocorrência {{ ocorrencia.numero }}</span>
+                            {% if ocorrencia.numero == 1 %}
+                            <span class="badge badge-success">✓ Será mantida</span>
+                            {% else %}
+                            <span class="badge badge-danger">✗ Será removida</span>
+                            {% endif %}
+                        </div>
+                        <div class="ocorrencia-detalhes">
+                            <div><strong>Índice:</strong> {{ ocorrencia.indice }}</div>
+                            <div><strong>Diário:</strong> {{ ocorrencia.diario }}</div>
+                            <div><strong>Órgão:</strong> {{ ocorrencia.orgao }}</div>
+                            <div><strong>Data Divulgação:</strong> {{ ocorrencia.data_divulgacao }}</div>
+                            <div><strong>Data Cadastro:</strong> {{ ocorrencia.data_cadastro }}</div>
+                            <div><strong>Código Integração:</strong> {{ ocorrencia.cod_integracao }}</div>
+                            {% if ocorrencia.despacho %}
+                            <div class="despacho"><strong>Despacho:</strong> {{ ocorrencia.despacho }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="recomendacao">
+            <strong>⚠️ Recomendação:</strong> O sistema manterá apenas a primeira ocorrência de cada grupo de duplicatas.
+        </div>
+
+        {% else %}
+        <div class="no-duplicatas">
+            <div class="success-icon">✓</div>
+            <h3>Nenhuma Duplicata Encontrada!</h3>
+            <p>O arquivo XML não contém publicações duplicadas.</p>
+            <p>Total de publicações analisadas: <strong>{{ session.total_publicacoes }}</strong></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
