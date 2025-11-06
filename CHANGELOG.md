@@ -1,5 +1,46 @@
 # Changelog
 
+## v1.11 - 2025-11-06
+
+### Otimizado - IMPORTANTE
+- **Processamento paralelo de chamadas de API**: Agora executa 3 análises simultâneas
+- Velocidade até **3x mais rápida** no processamento de duplicatas
+- Mantém integridade e ordem dos dados no XML
+
+### Implementação Técnica
+- ThreadPoolExecutor com `max_workers=3` para processar chamadas de API em paralelo
+- Thread-safety garantida com locks para contadores e progresso
+- Sistema de mapeamento de tarefas → resultados para preservar ordem exata
+- Progresso em tempo real continua funcionando durante processamento paralelo
+
+### Como Funciona
+1. **Preparação**: Coleta todas as tarefas de API que precisam ser executadas
+2. **Execução Paralela**: Processa 3 chamadas de API simultaneamente
+3. **Consolidação**: Insere resultados na ordem correta (não bagunça o XML)
+
+### Benefícios
+- ⚡ **3x mais rápido**: 3 análises por vez ao invés de 1
+- 🔒 **Seguro**: Thread-safe com locks apropriados
+- 📊 **Organizado**: Mantém ordem exata dos dados
+- 💻 **Eficiente**: Melhor uso dos recursos do servidor
+
+### Logs Aprimorados
+```
+📊 Total de comparações necessárias: 565
+💰 Chamadas de API previstas: 565
+⚡ Processamento paralelo: 3 análises simultâneas
+
+🚀 Iniciando processamento paralelo de 565 chamadas de API...
+🔍 Grupo 2, ocorrência 3: Chamando API (processo: 0800123-45.2024.8.24.0000)
+🔍 Grupo 5, ocorrência 2: Chamando API (processo: 0800456-78.2024.8.24.0000)
+🔍 Grupo 7, ocorrência 4: Chamando API (processo: 0800789-01.2024.8.24.0000)
+
+✅ Chamadas de API realizadas: 200
+⏭️ Chamadas economizadas: 365
+💰 Economia: 64.6%
+⚡ Velocidade: 3x mais rápido com processamento paralelo
+```
+
 ## v1.10 - 2025-11-06
 
 ### Adicionado

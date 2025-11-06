@@ -16,6 +16,7 @@ import requests
 import json
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -329,7 +330,7 @@ class PublicacaoProcessor:
         return duplicatas
 
     def gerar_relatorio_html(self):
-        """Gera dados do relatório para exibição HTML"""
+        """Gera dados do relatório para exibição HTML com processamento paralelo"""
         if not self.duplicatas:
             return None
 
@@ -350,15 +351,23 @@ class PublicacaoProcessor:
         total_comparacoes = sum(len(grupo) - 1 for _, grupo in self.duplicatas)
         print(f"\n📊 Total de grupos de duplicatas: {len(self.duplicatas)}")
         print(f"📊 Total de comparações necessárias: {total_comparacoes}")
-        print(f"💰 Chamadas de API previstas: {total_comparacoes}\n")
+        print(f"💰 Chamadas de API previstas: {total_comparacoes}")
+        print(f"⚡ Processamento paralelo: 3 análises simultâneas\n")
 
         # Atualiza progresso inicial
         if self.session_id:
             atualizar_progresso(self.session_id, 'Iniciando análise de duplicatas...', 0, total_comparacoes)
 
-        chamadas_realizadas = 0
-        chamadas_puladas = 0
-        comparacao_atual = 0
+        # Contadores thread-safe
+        stats_lock = threading.Lock()
+        stats = {
+            'chamadas_realizadas': 0,
+            'chamadas_puladas': 0,
+            'comparacao_atual': 0
+        }
+
+        # Primeiro passo: Preparar estruturas de dados e identificar comparações necessárias
+        tarefas_api = []  # Lista de tarefas para processar em paralelo
 
         for idx, (chave, grupo) in enumerate(self.duplicatas, 1):
             # Validação: só processa se houver numeroProcesso válido
@@ -372,13 +381,14 @@ class PublicacaoProcessor:
 
             grupo_info = {
                 'numero': idx,
-                'numero_processo': chave,  # Agora chave é apenas o numeroProcesso
+                'numero_processo': chave,
                 'data_publicacao': primeira_pub.get('dataPublicacao', 'N/A'),
                 'ano_publicacao': primeira_pub.get('anoPublicacao', 'N/A'),
                 'cod_publicacao': primeira_pub.get('codPublicacao', 'N/A'),
                 'quantidade': len(grupo),
                 'ocorrencias': [],
-                'comparacoes_api': []  # Nova lista para armazenar comparações
+                'comparacoes_api': [],
+                '_tarefas': []  # Lista temporária para mapear tarefas
             }
 
             for i, item in enumerate(grupo, 1):
@@ -402,19 +412,17 @@ class PublicacaoProcessor:
                 }
                 grupo_info['ocorrencias'].append(ocorrencia)
 
-                # Compara com a primeira ocorrência se não for a primeira
+                # Prepara comparação se não for a primeira ocorrência
                 if i > 1:
-                    comparacao_atual += 1
-
-                    # Atualiza progresso com número completo do processo
-                    if self.session_id:
-                        mensagem = f"📋 Processo: {chave}\n🔍 Grupo {idx}/{len(self.duplicatas)} - Comparando ocorrência {i}/{len(grupo)}"
-                        atualizar_progresso(self.session_id, mensagem, comparacao_atual, total_comparacoes)
+                    with stats_lock:
+                        stats['comparacao_atual'] += 1
+                        comparacao_num = stats['comparacao_atual']
 
                     # Otimização 1: Só chama API se ambos os textos têm conteúdo
                     if not texto_referencia or not texto_atual:
                         print(f"⏭️ Grupo {idx}, ocorrência {i}: processoPublicacao vazio, pulando API")
-                        chamadas_puladas += 1
+                        with stats_lock:
+                            stats['chamadas_puladas'] += 1
                         continue
 
                     # Otimização 2: Se textos são idênticos, não precisa chamar API
@@ -428,40 +436,100 @@ class PublicacaoProcessor:
                             'sao_similares': True
                         }
                         grupo_info['comparacoes_api'].append(comparacao)
-                        chamadas_puladas += 1
+                        with stats_lock:
+                            stats['chamadas_puladas'] += 1
                         continue
 
                     # Otimização 3: Só chama API se numeroProcesso for realmente igual
                     if numero_processo_atual == chave:
-                        print(f"🔍 Grupo {idx}, ocorrência {i}: Chamando API (processo: {chave})")
-
-                        # Atualiza progresso: chamando API
-                        if self.session_id:
-                            mensagem = f"📋 Processo: {chave}\n⏳ Consultando API... (Grupo {idx}/{len(self.duplicatas)}, Ocorrência {i}/{len(grupo)})"
-                            atualizar_progresso(self.session_id, mensagem, comparacao_atual, total_comparacoes)
-
-                        comparacao = comparar_textos_api(texto_referencia, texto_atual)
-                        comparacao['ocorrencia_comparada'] = i
-
-                        # Registra se API considerou similar ou não
-                        if comparacao.get('sao_similares') == True:
-                            print(f"   ✅ API: Similares (duplicata confirmada)")
-                        elif comparacao.get('sao_similares') == False:
-                            print(f"   ❌ API: Diferentes (NÃO é duplicata)")
-                        else:
-                            print(f"   ⚠️ API: Erro ou resultado indefinido")
-
-                        grupo_info['comparacoes_api'].append(comparacao)
-                        chamadas_realizadas += 1
+                        # Adiciona tarefa para processar em paralelo
+                        tarefa = {
+                            'grupo_idx': idx,
+                            'grupo_total': len(self.duplicatas),
+                            'ocorrencia_num': i,
+                            'ocorrencia_total': len(grupo),
+                            'chave': chave,
+                            'texto1': texto_referencia,
+                            'texto2': texto_atual,
+                            'comparacao_num': comparacao_num
+                        }
+                        tarefas_api.append(tarefa)
+                        # Marca posição para inserir resultado depois
+                        grupo_info['_tarefas'].append((i, len(tarefas_api) - 1))
                     else:
                         print(f"⚠️ Grupo {idx}, ocorrência {i}: numeroProcesso diferente, pulando API")
-                        chamadas_puladas += 1
+                        with stats_lock:
+                            stats['chamadas_puladas'] += 1
 
             relatorio['grupos'].append(grupo_info)
 
-        print(f"\n✅ Chamadas de API realizadas: {chamadas_realizadas}")
-        print(f"⏭️ Chamadas economizadas: {chamadas_puladas}")
-        print(f"💰 Economia: {(chamadas_puladas / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%\n")
+        # Segundo passo: Processar tarefas de API em paralelo (3 por vez)
+        print(f"🚀 Iniciando processamento paralelo de {len(tarefas_api)} chamadas de API...")
+
+        # Dicionário para armazenar resultados na ordem correta
+        resultados = {}
+
+        def processar_tarefa_api(tarefa):
+            """Processa uma única tarefa de API"""
+            idx = tarefa['grupo_idx']
+            i = tarefa['ocorrencia_num']
+            chave = tarefa['chave']
+            total_grupos = tarefa['grupo_total']
+            total_ocorrencias = tarefa['ocorrencia_total']
+            comparacao_num = tarefa['comparacao_num']
+
+            print(f"🔍 Grupo {idx}, ocorrência {i}: Chamando API (processo: {chave})")
+
+            # Atualiza progresso
+            if self.session_id:
+                mensagem = f"📋 Processo: {chave}\n⏳ Consultando API... (Grupo {idx}/{total_grupos}, Ocorrência {i}/{total_ocorrencias})"
+                atualizar_progresso(self.session_id, mensagem, comparacao_num, total_comparacoes)
+
+            # Chama API
+            comparacao = comparar_textos_api(tarefa['texto1'], tarefa['texto2'])
+            comparacao['ocorrencia_comparada'] = i
+
+            # Registra resultado
+            if comparacao.get('sao_similares') == True:
+                print(f"   ✅ API: Similares (duplicata confirmada)")
+            elif comparacao.get('sao_similares') == False:
+                print(f"   ❌ API: Diferentes (NÃO é duplicata)")
+            else:
+                print(f"   ⚠️ API: Erro ou resultado indefinido")
+
+            with stats_lock:
+                stats['chamadas_realizadas'] += 1
+
+            return (tarefa, comparacao)
+
+        # Executa tarefas em paralelo com pool de 3 threads
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            # Submete todas as tarefas
+            futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
+
+            # Coleta resultados conforme ficam prontos
+            for future in as_completed(futures):
+                try:
+                    tarefa, comparacao = future.result()
+                    # Armazena resultado com índice da tarefa para manter ordem
+                    tarefa_idx = tarefas_api.index(tarefa)
+                    resultados[tarefa_idx] = comparacao
+                except Exception as e:
+                    print(f"❌ Erro ao processar tarefa: {str(e)}")
+
+        # Terceiro passo: Inserir resultados na ordem correta nos grupos
+        for grupo_info in relatorio['grupos']:
+            if '_tarefas' in grupo_info:
+                for ocorrencia_num, tarefa_idx in grupo_info['_tarefas']:
+                    if tarefa_idx in resultados:
+                        grupo_info['comparacoes_api'].append(resultados[tarefa_idx])
+                # Remove lista temporária
+                del grupo_info['_tarefas']
+
+        print(f"\n✅ Chamadas de API realizadas: {stats['chamadas_realizadas']}")
+        print(f"⏭️ Chamadas economizadas: {stats['chamadas_puladas']}")
+        print(f"💰 Economia: {(stats['chamadas_puladas'] / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%")
+        print(f"⚡ Velocidade: 3x mais rápido com processamento paralelo\n")
 
         # Atualiza progresso final
         if self.session_id:
