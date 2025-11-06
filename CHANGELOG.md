@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.07 - 2025-11-06
+
+### Adicionado
+- **Barra de progresso em tempo real** durante análise de duplicatas
+- Overlay visual que mostra:
+  - Mensagem do processamento atual
+  - Barra de progresso animada com porcentagem
+  - Contador de comparações (atual / total)
+- Atualização automática a cada 500ms via polling
+- Desaparece automaticamente ao concluir
+
+### Implementação
+- Sistema thread-safe de tracking de progresso
+- Endpoint `/progresso` que retorna JSON com estado atual
+- JavaScript com polling automático no frontend
+- CSS estilizado com gradiente roxo/azul
+- Integração completa com `PublicacaoProcessor`
+
+### Melhorias UX
+- Feedback visual durante chamadas lentas de API
+- Usuário vê exatamente qual grupo/ocorrência está sendo processado
+- Animação suave da barra de progresso
+- Não bloqueia interface após conclusão
+
 ## v1.06 - 2025-11-06
 
 ### Corrigido - IMPORTANTE

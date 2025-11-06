@@ -5,7 +5,7 @@ Aplicação Web para Processamento de XML SOAP - Publicações
 Identifica duplicatas e permite download do XML limpo
 """
 
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, session
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, session, Response, stream_with_context
 import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -14,6 +14,8 @@ from werkzeug.utils import secure_filename
 import secrets
 import requests
 import json
+import threading
+import time
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -23,6 +25,35 @@ app.config['ALLOWED_EXTENSIONS'] = {'xml'}
 
 # Cria pastas necessárias
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Dicionário global para armazenar progresso (thread-safe com lock)
+progresso_global = {}
+progresso_lock = threading.Lock()
+
+
+def atualizar_progresso(session_id, mensagem, atual, total):
+    """Atualiza o progresso de uma sessão"""
+    with progresso_lock:
+        progresso_global[session_id] = {
+            'mensagem': mensagem,
+            'atual': atual,
+            'total': total,
+            'porcentagem': int((atual / total * 100)) if total > 0 else 0,
+            'timestamp': time.time()
+        }
+
+
+def obter_progresso(session_id):
+    """Obtém o progresso de uma sessão"""
+    with progresso_lock:
+        return progresso_global.get(session_id, None)
+
+
+def limpar_progresso(session_id):
+    """Remove o progresso de uma sessão"""
+    with progresso_lock:
+        if session_id in progresso_global:
+            del progresso_global[session_id]
 
 
 def allowed_file(filename):
@@ -180,12 +211,13 @@ def comparar_textos_api(texto1, texto2):
 class PublicacaoProcessor:
     """Classe para processar publicações SOAP XML"""
 
-    def __init__(self, xml_path):
+    def __init__(self, xml_path, session_id=None):
         self.xml_path = xml_path
         self.tree = None
         self.root = None
         self.publicacoes = []
         self.duplicatas = []
+        self.session_id = session_id  # Para tracking de progresso
 
     def carregar_xml(self):
         """Carrega o arquivo XML"""
@@ -320,8 +352,13 @@ class PublicacaoProcessor:
         print(f"📊 Total de comparações necessárias: {total_comparacoes}")
         print(f"💰 Chamadas de API previstas: {total_comparacoes}\n")
 
+        # Atualiza progresso inicial
+        if self.session_id:
+            atualizar_progresso(self.session_id, 'Iniciando análise de duplicatas...', 0, total_comparacoes)
+
         chamadas_realizadas = 0
         chamadas_puladas = 0
+        comparacao_atual = 0
 
         for idx, (chave, grupo) in enumerate(self.duplicatas, 1):
             # Validação: só processa se houver numeroProcesso válido
@@ -367,6 +404,13 @@ class PublicacaoProcessor:
 
                 # Compara com a primeira ocorrência se não for a primeira
                 if i > 1:
+                    comparacao_atual += 1
+
+                    # Atualiza progresso
+                    if self.session_id:
+                        mensagem = f"Grupo {idx}/{len(self.duplicatas)}: Comparando ocorrência {i} (Processo: {chave[:30]}...)"
+                        atualizar_progresso(self.session_id, mensagem, comparacao_atual, total_comparacoes)
+
                     # Otimização 1: Só chama API se ambos os textos têm conteúdo
                     if not texto_referencia or not texto_atual:
                         print(f"⏭️ Grupo {idx}, ocorrência {i}: processoPublicacao vazio, pulando API")
@@ -390,6 +434,12 @@ class PublicacaoProcessor:
                     # Otimização 3: Só chama API se numeroProcesso for realmente igual
                     if numero_processo_atual == chave:
                         print(f"🔍 Grupo {idx}, ocorrência {i}: Chamando API (processo: {chave})")
+
+                        # Atualiza progresso: chamando API
+                        if self.session_id:
+                            mensagem = f"Grupo {idx}/{len(self.duplicatas)}: Consultando API para ocorrência {i}..."
+                            atualizar_progresso(self.session_id, mensagem, comparacao_atual, total_comparacoes)
+
                         comparacao = comparar_textos_api(texto_referencia, texto_atual)
                         comparacao['ocorrencia_comparada'] = i
 
@@ -412,6 +462,10 @@ class PublicacaoProcessor:
         print(f"\n✅ Chamadas de API realizadas: {chamadas_realizadas}")
         print(f"⏭️ Chamadas economizadas: {chamadas_puladas}")
         print(f"💰 Economia: {(chamadas_puladas / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%\n")
+
+        # Atualiza progresso final
+        if self.session_id:
+            atualizar_progresso(self.session_id, 'Análise concluída!', total_comparacoes, total_comparacoes)
 
         return relatorio
 
@@ -478,8 +532,11 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Processa o XML
-        processor = PublicacaoProcessor(filepath)
+        # Processa o XML (passa session_id para tracking de progresso)
+        session_id = session.get('session_id', session.sid if hasattr(session, 'sid') else str(time.time()))
+        session['session_id'] = session_id
+
+        processor = PublicacaoProcessor(filepath, session_id=session_id)
         success, message = processor.carregar_xml()
 
         if not success:
@@ -510,17 +567,24 @@ def relatorio():
     filename = session['current_file']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
-    processor = PublicacaoProcessor(filepath)
+    # Usa session_id para tracking
+    session_id = session.get('session_id', str(time.time()))
+
+    processor = PublicacaoProcessor(filepath, session_id=session_id)
     processor.carregar_xml()
     processor.extrair_publicacoes()
     processor.identificar_duplicatas()
 
     relatorio = processor.gerar_relatorio_html()
 
+    # Limpa progresso após conclusão
+    limpar_progresso(session_id)
+
     return render_template('relatorio.html',
                          relatorio=relatorio,
                          filename=filename,
-                         tem_duplicatas=(relatorio is not None))
+                         tem_duplicatas=(relatorio is not None),
+                         session_id=session_id)
 
 
 @app.route('/download')
@@ -573,6 +637,27 @@ def limpar():
     session.clear()
     flash('Sessão limpa com sucesso!', 'success')
     return redirect(url_for('index'))
+
+
+@app.route('/progresso')
+def progresso():
+    """Retorna o progresso atual do processamento via JSON"""
+    session_id = request.args.get('session_id') or session.get('session_id')
+
+    if not session_id:
+        return json.dumps({'erro': 'session_id não fornecido'}), 400
+
+    progresso = obter_progresso(session_id)
+
+    if progresso is None:
+        return json.dumps({
+            'mensagem': 'Aguardando início do processamento...',
+            'atual': 0,
+            'total': 0,
+            'porcentagem': 0
+        })
+
+    return json.dumps(progresso)
 
 
 if __name__ == '__main__':
