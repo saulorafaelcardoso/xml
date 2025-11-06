@@ -30,8 +30,10 @@
         font-size: 1.1rem;
         color: #666;
         margin-bottom: 25px;
-        min-height: 30px;
+        min-height: 60px;
         font-weight: 500;
+        white-space: pre-line;
+        line-height: 1.6;
     }
 
     .progress-bar-container {
@@ -86,7 +88,6 @@
     </div>
     <div class="progress-message" id="progress-message">
         Iniciando processamento...
-        <span class="spinner"></span>
     </div>
     <div class="progress-bar-container">
         <div class="progress-bar" id="progress-bar">0%</div>
@@ -125,7 +126,8 @@
                 progressBar.textContent = data.porcentagem + '%';
 
                 let mensagem = data.mensagem || 'Processando...';
-                progressMessage.innerHTML = mensagem + '<span class="spinner"></span>';
+                // Usa textContent para preservar quebras de linha (\n)
+                progressMessage.textContent = mensagem;
 
                 if (data.atual && data.total) {
                     progressStats.textContent = data.atual + ' / ' + data.total + ' comparações realizadas';
@@ -139,7 +141,7 @@
                         clearInterval(progressInterval);
                     }
 
-                    progressMessage.innerHTML = '✅ Processamento concluído! Redirecionando...';
+                    progressMessage.textContent = '✅ Processamento concluído! Redirecionando...';
 
                     setTimeout(() => {
                         window.location.href = '{{ url_for("relatorio") }}';

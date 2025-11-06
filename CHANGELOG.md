@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.09 - 2025-11-06
+
+### Melhorado
+- **Número do processo agora aparece na barra de progresso**
+- Mensagens mais detalhadas durante processamento:
+  - Mostra o número completo do processo sendo analisado
+  - Exibe grupo atual e total de grupos
+  - Exibe ocorrência atual e total de ocorrências do grupo
+  - Diferencia quando está comparando vs consultando API
+
+### Formato das mensagens
+```
+📋 Processo: 0800123-45.2024.8.24.0000
+🔍 Grupo 2/5 - Comparando ocorrência 3/4
+```
+ou
+```
+📋 Processo: 0800123-45.2024.8.24.0000
+⏳ Consultando API... (Grupo 2/5, Ocorrência 3/4)
+```
+
+### Técnico
+- CSS ajustado para exibir múltiplas linhas (white-space: pre-line)
+- JavaScript usa textContent para preservar quebras de linha
+- Altura da mensagem aumentada para 60px (comportar 2 linhas)
+
 ## v1.08 - 2025-11-06
 
 ### Corrigido - IMPORTANTE

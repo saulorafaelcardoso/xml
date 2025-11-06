@@ -406,9 +406,9 @@ class PublicacaoProcessor:
                 if i > 1:
                     comparacao_atual += 1
 
-                    # Atualiza progresso
+                    # Atualiza progresso com número completo do processo
                     if self.session_id:
-                        mensagem = f"Grupo {idx}/{len(self.duplicatas)}: Comparando ocorrência {i} (Processo: {chave[:30]}...)"
+                        mensagem = f"📋 Processo: {chave}\n🔍 Grupo {idx}/{len(self.duplicatas)} - Comparando ocorrência {i}/{len(grupo)}"
                         atualizar_progresso(self.session_id, mensagem, comparacao_atual, total_comparacoes)
 
                     # Otimização 1: Só chama API se ambos os textos têm conteúdo
@@ -437,7 +437,7 @@ class PublicacaoProcessor:
 
                         # Atualiza progresso: chamando API
                         if self.session_id:
-                            mensagem = f"Grupo {idx}/{len(self.duplicatas)}: Consultando API para ocorrência {i}..."
+                            mensagem = f"📋 Processo: {chave}\n⏳ Consultando API... (Grupo {idx}/{len(self.duplicatas)}, Ocorrência {i}/{len(grupo)})"
                             atualizar_progresso(self.session_id, mensagem, comparacao_atual, total_comparacoes)
 
                         comparacao = comparar_textos_api(texto_referencia, texto_atual)
