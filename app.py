@@ -184,7 +184,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
             if tentativa > 1:
                 print(f"   🔄 Tentativa {tentativa}/{max_tentativas}...")
 
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=90)
 
             if response.status_code == 200:
                 data = response.json()
@@ -211,7 +211,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
                 print(f"   ❌ Timeout após {max_tentativas} tentativas")
                 return {
                     'sucesso': False,
-                    'erro': f'Timeout após {max_tentativas} tentativas (180s cada)',
+                    'erro': f'Timeout após {max_tentativas} tentativas (90s cada)',
                     'analise_juridica': 'Timeout',
                     'interpretacao': f'API não respondeu após {max_tentativas} tentativas',
                     'sao_similares': None
@@ -383,7 +383,7 @@ class PublicacaoProcessor:
         print(f"\n📊 Total de grupos de duplicatas: {len(self.duplicatas)}")
         print(f"📊 Total de comparações necessárias: {total_comparacoes}")
         print(f"💰 Chamadas de API previstas: {total_comparacoes}")
-        print(f"⚡ Processamento paralelo: 5 análises simultâneas\n")
+        print(f"🚀 Processamento paralelo: 20 análises simultâneas (ULTRA-RÁPIDO!)\n")
 
         # Atualiza progresso inicial
         if self.session_id:
@@ -494,8 +494,9 @@ class PublicacaoProcessor:
 
             relatorio['grupos'].append(grupo_info)
 
-        # Segundo passo: Processar tarefas de API em paralelo (5 por vez)
+        # Segundo passo: Processar tarefas de API em paralelo (20 por vez - ULTRA-RÁPIDO!)
         print(f"🚀 Iniciando processamento paralelo de {len(tarefas_api)} chamadas de API...")
+        print(f"⚡ 20 requisições simultâneas para máxima velocidade!")
 
         # Dicionário para armazenar resultados na ordem correta
         resultados = {}
@@ -534,15 +535,16 @@ class PublicacaoProcessor:
             return (tarefa, comparacao)
 
         # Calcula timeout dinâmico: estimativa de tempo necessário + margem
-        # Com 5 workers e 180s por tentativa * 2 tentativas = 360s por tarefa
-        # Tempo estimado: (tarefas / workers) * 360s * 1.3 de margem
-        timeout_total = max(7200, int((len(tarefas_api) / 5) * 360 * 1.3))  # Mínimo 2 horas
+        # Com 20 workers e 90s por tentativa * 2 tentativas = 180s por tarefa
+        # Tempo estimado: (tarefas / workers) * 180s * 1.2 de margem
+        timeout_total = max(3600, int((len(tarefas_api) / 20) * 180 * 1.2))  # Mínimo 1 hora
         print(f"⏱️ Timeout total configurado: {timeout_total / 60:.1f} minutos")
-        print(f"⏱️ Timeout por tarefa: 400s (2 tentativas de 180s + margem)")
+        print(f"⏱️ Timeout por tarefa: 200s (2 tentativas de 90s + margem)")
+        print(f"🚀 Workers paralelos: 20 (processamento ultra-rápido!)")
 
-        # Executa tarefas em paralelo com pool de 5 threads
+        # Executa tarefas em paralelo com pool de 20 threads
         cancelado = False
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
 
@@ -561,7 +563,7 @@ class PublicacaoProcessor:
                         break
 
                 try:
-                    tarefa, comparacao = future.result(timeout=400)  # 400 segundos por tarefa (2 tentativas de 180s)
+                    tarefa, comparacao = future.result(timeout=200)  # 200 segundos por tarefa (2 tentativas de 90s)
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
@@ -589,7 +591,7 @@ class PublicacaoProcessor:
         print(f"\n✅ Chamadas de API realizadas: {stats['chamadas_realizadas']}")
         print(f"⏭️ Chamadas economizadas: {stats['chamadas_puladas']}")
         print(f"💰 Economia: {(stats['chamadas_puladas'] / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%")
-        print(f"⚡ Velocidade: 5x mais rápido com processamento paralelo\n")
+        print(f"🚀 Velocidade: 20x mais rápido com processamento paralelo ultra-otimizado!\n")
 
         # Atualiza progresso final
         if self.session_id:
