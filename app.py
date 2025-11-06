@@ -12,6 +12,8 @@ from collections import defaultdict
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import secrets
+import requests
+import json
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
@@ -26,6 +28,61 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 def allowed_file(filename):
     """Verifica se o arquivo tem extensão permitida"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+
+def comparar_textos_api(texto1, texto2):
+    """
+    Compara dois textos usando a API de duplicidades
+    Retorna: dict com analise_juridica, interpretacao, sao_similares
+    """
+    API_URL = 'http://extracao-rtx.corejur.com.br:5000/duplicidades'
+    TOKEN = 'Bearer 2390*Corejur*)23dads'
+
+    headers = {
+        'Authorization': TOKEN,
+        'Content-Type': 'application/json'
+    }
+
+    payload = {
+        'texto1': texto1 or '',
+        'texto2': texto2 or ''
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'sucesso': True,
+                'analise_juridica': data.get('analise_juridica', 'N/A'),
+                'interpretacao': data.get('interpretacao', 'N/A'),
+                'sao_similares': data.get('sao_similares', False)
+            }
+        else:
+            return {
+                'sucesso': False,
+                'erro': f'API retornou status {response.status_code}',
+                'analise_juridica': 'Erro na API',
+                'interpretacao': 'Erro na API',
+                'sao_similares': None
+            }
+    except requests.exceptions.Timeout:
+        return {
+            'sucesso': False,
+            'erro': 'Timeout na chamada da API',
+            'analise_juridica': 'Timeout',
+            'interpretacao': 'Timeout',
+            'sao_similares': None
+        }
+    except Exception as e:
+        return {
+            'sucesso': False,
+            'erro': str(e),
+            'analise_juridica': f'Erro: {str(e)}',
+            'interpretacao': 'Erro ao acessar API',
+            'sao_similares': None
+        }
 
 
 class PublicacaoProcessor:
@@ -164,6 +221,7 @@ class PublicacaoProcessor:
         for idx, (chave, grupo) in enumerate(self.duplicatas, 1):
             # Pega dados da primeira publicação do grupo para exibição
             primeira_pub = grupo[0]['dados']
+            texto_referencia = primeira_pub.get('despachoPublicacao', '')
 
             grupo_info = {
                 'numero': idx,
@@ -172,11 +230,14 @@ class PublicacaoProcessor:
                 'ano_publicacao': primeira_pub.get('anoPublicacao', 'N/A'),
                 'cod_publicacao': primeira_pub.get('codPublicacao', 'N/A'),
                 'quantidade': len(grupo),
-                'ocorrencias': []
+                'ocorrencias': [],
+                'comparacoes_api': []  # Nova lista para armazenar comparações
             }
 
             for i, item in enumerate(grupo, 1):
                 pub = item['dados']
+                texto_atual = pub.get('despachoPublicacao', '')
+
                 ocorrencia = {
                     'numero': i,
                     'indice': item['indice'],
@@ -185,11 +246,16 @@ class PublicacaoProcessor:
                     'data_divulgacao': pub.get('dataDivulgacao', 'N/A'),
                     'data_cadastro': pub.get('dataCadastro', 'N/A'),
                     'cod_integracao': pub.get('codIntegracao', 'N/A'),
-                    'despacho': pub.get('despachoPublicacao', '')[:200] + '...'
-                                if len(pub.get('despachoPublicacao', '')) > 200
-                                else pub.get('despachoPublicacao', '')
+                    'despacho': texto_atual[:200] + '...' if len(texto_atual) > 200 else texto_atual
                 }
                 grupo_info['ocorrencias'].append(ocorrencia)
+
+                # Compara com a primeira ocorrência se não for a primeira
+                if i > 1:
+                    print(f"🔍 Comparando ocorrência {i} do grupo {idx} via API...")
+                    comparacao = comparar_textos_api(texto_referencia, texto_atual)
+                    comparacao['ocorrencia_comparada'] = i
+                    grupo_info['comparacoes_api'].append(comparacao)
 
             relatorio['grupos'].append(grupo_info)
 

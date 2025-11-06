@@ -173,6 +173,43 @@
                     </div>
                     {% endfor %}
                 </div>
+
+                <!-- Análise de Similaridade via API -->
+                {% if grupo.comparacoes_api %}
+                <div class="analise-api">
+                    <h4>🔬 Análise de Similaridade (API)</h4>
+                    {% for comp in grupo.comparacoes_api %}
+                    <div class="comparacao-item">
+                        <div class="comparacao-header">
+                            <strong>Comparação: Ocorrência 1 vs Ocorrência {{ comp.ocorrencia_comparada }}</strong>
+                            {% if comp.sao_similares %}
+                            <span class="badge badge-success">✓ Similares</span>
+                            {% elif comp.sao_similares == False %}
+                            <span class="badge badge-danger">✗ Diferentes</span>
+                            {% else %}
+                            <span class="badge badge-warning">⚠ Erro na análise</span>
+                            {% endif %}
+                        </div>
+                        <div class="comparacao-detalhes">
+                            <div class="analise-campo">
+                                <strong>Análise Jurídica:</strong>
+                                <p>{{ comp.analise_juridica }}</p>
+                            </div>
+                            <div class="analise-campo">
+                                <strong>Interpretação:</strong>
+                                <p>{{ comp.interpretacao }}</p>
+                            </div>
+                            {% if not comp.sucesso %}
+                            <div class="analise-erro">
+                                <strong>⚠️ Erro:</strong> {{ comp.erro }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
             </div>
             {% endfor %}
         </div>

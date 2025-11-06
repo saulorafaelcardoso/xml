@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.03 - 2025-11-06
+
+### Adicionado
+- **Análise de Similaridade via API**: Integração com API externa para comparar textos de duplicatas
+- Comparação automática do campo `despachoPublicacao` entre ocorrências do mesmo processo
+- API endpoint: `http://extracao-rtx.corejur.com.br:5000/duplicidades`
+- Campos retornados: `analise_juridica`, `interpretacao`, `sao_similares`
+- Exibição visual da análise no relatório com badges de status
+- Tratamento de erros e timeout (30s) nas chamadas da API
+- Adicionada biblioteca `requests` às dependências
+
+### Interface
+- Nova seção "Análise de Similaridade (API)" em cada grupo de duplicatas
+- Badges coloridos: Verde (Similares), Vermelho (Diferentes), Amarelo (Erro)
+- Exibe análise jurídica e interpretação para cada comparação
+- CSS estilizado para seção de análise
+
 ## v1.02 - 2025-11-06
 
 ### Alterado

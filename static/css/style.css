@@ -324,6 +324,11 @@ input[type="file"] {
     background: #dc3545;
 }
 
+.badge-warning {
+    background: #ffc107;
+    color: #333;
+}
+
 .grupo-info {
     background: #f8f9fa;
     padding: 15px 20px;
@@ -388,6 +393,81 @@ input[type="file"] {
     background: #f8f9fa;
     border-radius: 4px;
     font-size: 0.9rem;
+}
+
+/* Análise de Similaridade (API) */
+.analise-api {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f0f8ff;
+    border-radius: 8px;
+    border: 2px solid #667eea;
+}
+
+.analise-api h4 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.comparacao-item {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.comparacao-item:last-child {
+    margin-bottom: 0;
+}
+
+.comparacao-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #e9ecef;
+    font-weight: bold;
+    color: #333;
+}
+
+.comparacao-detalhes {
+    display: grid;
+    gap: 15px;
+}
+
+.analise-campo {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #667eea;
+}
+
+.analise-campo strong {
+    display: block;
+    color: #667eea;
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+}
+
+.analise-campo p {
+    margin: 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+.analise-erro {
+    padding: 12px;
+    background: #fff3cd;
+    border-radius: 6px;
+    border-left: 3px solid #ffc107;
+    color: #856404;
+}
+
+.analise-erro strong {
+    display: block;
+    margin-bottom: 5px;
 }
 
 /* Sem duplicatas */
