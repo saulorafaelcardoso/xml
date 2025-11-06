@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.10 - 2025-11-06
+
+### Adicionado
+- **Painel de informações na barra de progresso**
+- Mostra em tempo real:
+  - 📄 Total de Publicações encontradas no XML
+  - 🔄 Total de Grupos Duplicados
+- Números formatados com separador de milhares (pt-BR)
+- Design em grid com 2 colunas destacadas
+
+### Melhorado
+- Mensagens mais informativas durante o processamento:
+  - "✅ 1.452 publicações encontradas!"
+  - "📊 Publicações: 1.452 | Grupos duplicados: 334"
+- Valores aparecem assim que são calculados (não precisa esperar o fim)
+- Interface mais profissional e informativa
+
+### Visual
+- Painel roxo/azul com bordas destacadas
+- Números grandes e em negrito
+- Atualização em tempo real via polling
+
 ## v1.09 - 2025-11-06
 
 ### Melhorado

@@ -64,6 +64,33 @@
         margin-top: 10px;
     }
 
+    .info-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 25px;
+        padding: 20px;
+        background: #f8f9ff;
+        border-radius: 8px;
+        border: 2px solid #667eea;
+    }
+
+    .info-item {
+        text-align: center;
+    }
+
+    .info-label {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .info-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+
     .spinner {
         display: inline-block;
         width: 20px;
@@ -86,6 +113,19 @@
     <div class="progress-title">
         🔄 Processando XML
     </div>
+
+    <!-- Painel de Informações -->
+    <div class="info-panel">
+        <div class="info-item">
+            <div class="info-label">📄 Total de Publicações</div>
+            <div class="info-value" id="total-publicacoes">-</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">🔄 Grupos Duplicados</div>
+            <div class="info-value" id="grupos-duplicatas">-</div>
+        </div>
+    </div>
+
     <div class="progress-message" id="progress-message">
         Iniciando processamento...
     </div>
@@ -121,6 +161,8 @@
                 const progressBar = document.getElementById('progress-bar');
                 const progressMessage = document.getElementById('progress-message');
                 const progressStats = document.getElementById('progress-stats');
+                const totalPublicacoes = document.getElementById('total-publicacoes');
+                const gruposDuplicatas = document.getElementById('grupos-duplicatas');
 
                 progressBar.style.width = data.porcentagem + '%';
                 progressBar.textContent = data.porcentagem + '%';
@@ -128,6 +170,14 @@
                 let mensagem = data.mensagem || 'Processando...';
                 // Usa textContent para preservar quebras de linha (\n)
                 progressMessage.textContent = mensagem;
+
+                // Atualiza painel de informações
+                if (data.total_publicacoes) {
+                    totalPublicacoes.textContent = data.total_publicacoes.toLocaleString('pt-BR');
+                }
+                if (data.grupos_duplicatas !== undefined) {
+                    gruposDuplicatas.textContent = data.grupos_duplicatas.toLocaleString('pt-BR');
+                }
 
                 if (data.atual && data.total) {
                     progressStats.textContent = data.atual + ' / ' + data.total + ' comparações realizadas';

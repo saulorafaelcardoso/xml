@@ -529,17 +529,24 @@ def processar_xml_background(filepath, session_id):
         atualizar_progresso(session_id, 'Extraindo publicações...', 10, 100)
         processor.extrair_publicacoes()
 
-        atualizar_progresso(session_id, 'Identificando duplicatas...', 20, 100)
+        # Adiciona total de publicações ao progresso
+        with progresso_lock:
+            progresso_global[session_id]['total_publicacoes'] = len(processor.publicacoes)
+
+        atualizar_progresso(session_id, f'✅ {len(processor.publicacoes)} publicações encontradas!\nIdentificando duplicatas...', 20, 100)
         processor.identificar_duplicatas()
 
-        atualizar_progresso(session_id, 'Gerando relatório...', 30, 100)
+        # Adiciona total de grupos de duplicatas
+        with progresso_lock:
+            progresso_global[session_id]['grupos_duplicatas'] = len(processor.duplicatas)
+
+        atualizar_progresso(session_id, f'📊 Publicações: {len(processor.publicacoes)} | Grupos duplicados: {len(processor.duplicatas)}\nGerando relatório...', 30, 100)
         # O gerar_relatorio_html já atualiza o progresso internamente
         relatorio = processor.gerar_relatorio_html()
 
         # Salva resultado no progresso
         with progresso_lock:
             progresso_global[session_id]['relatorio'] = relatorio
-            progresso_global[session_id]['total_publicacoes'] = len(processor.publicacoes)
             progresso_global[session_id]['total_duplicatas'] = len(processor.duplicatas)
             progresso_global[session_id]['concluido'] = True
 
