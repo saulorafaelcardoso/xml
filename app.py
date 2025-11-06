@@ -196,9 +196,9 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
 
             # Log ANTES da chamada
             inicio_chamada = time.time()
-            print(f"   📡 Chamando API (timeout: 180s)...")
+            print(f"   📡 Chamando API (timeout: 50s)...")
 
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=50)
 
             # Log DEPOIS da chamada
             tempo_resposta = time.time() - inicio_chamada
@@ -232,7 +232,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
                 print(f"   ❌ Timeout definitivo após {max_tentativas} tentativas")
                 return {
                     'sucesso': False,
-                    'erro': f'Timeout após {max_tentativas} tentativas (180s cada)',
+                    'erro': f'Timeout após {max_tentativas} tentativas (50s cada)',
                     'analise_juridica': 'Timeout',
                     'interpretacao': f'API não respondeu após {max_tentativas} tentativas',
                     'sao_similares': None
@@ -563,11 +563,11 @@ class PublicacaoProcessor:
             return (tarefa, comparacao)
 
         # Calcula timeout dinâmico: estimativa de tempo necessário + margem
-        # Com 10 workers e 180s por tentativa * 2 tentativas + backoff = 370s por tarefa
-        # Tempo estimado: (tarefas / workers) * 370s * 1.3 de margem
-        timeout_total = max(3600, int((len(tarefas_api) / 10) * 370 * 1.3))  # Mínimo 1 hora
+        # Com 10 workers e 50s por tentativa * 2 tentativas + backoff = 110s por tarefa
+        # Tempo estimado: (tarefas / workers) * 110s * 1.3 de margem
+        timeout_total = max(3600, int((len(tarefas_api) / 10) * 110 * 1.3))  # Mínimo 1 hora
         print(f"⏱️ Timeout total configurado: {timeout_total / 60:.1f} minutos")
-        print(f"⏱️ Timeout por tarefa: 400s (2 tentativas de 180s + backoff + margem)")
+        print(f"⏱️ Timeout por tarefa: 120s (2 tentativas de 50s + backoff + margem)")
         print(f"🚀 Workers paralelos: 10 (otimizado para evitar sobrecarga na API)")
 
         # Executa tarefas em paralelo com pool de 10 threads
@@ -601,7 +601,7 @@ class PublicacaoProcessor:
                         break
 
                 try:
-                    tarefa, comparacao = future.result(timeout=400)  # 400 segundos por tarefa (2 tentativas de 180s + backoff)
+                    tarefa, comparacao = future.result(timeout=120)  # 120 segundos por tarefa (2 tentativas de 50s + backoff)
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
