@@ -158,9 +158,9 @@ def corrigir_encoding_arquivo(filepath):
         return filepath
 
 
-def comparar_textos_api(texto1, texto2):
+def comparar_textos_api(texto1, texto2, max_tentativas=2):
     """
-    Compara dois textos usando a API de duplicidades
+    Compara dois textos usando a API de duplicidades com retry automático
     Retorna: dict com analise_juridica, interpretacao, sao_similares
     """
     API_URL = 'http://extracao-rtx.corejur.com.br:5000/duplicidades'
@@ -176,41 +176,68 @@ def comparar_textos_api(texto1, texto2):
         'texto2': texto2 or ''
     }
 
-    try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+    ultima_excecao = None
 
-        if response.status_code == 200:
-            data = response.json()
-            return {
-                'sucesso': True,
-                'analise_juridica': data.get('analise_juridica', 'N/A'),
-                'interpretacao': data.get('interpretacao', 'N/A'),
-                'sao_similares': data.get('sao_similares', False)
-            }
-        else:
-            return {
-                'sucesso': False,
-                'erro': f'API retornou status {response.status_code}',
-                'analise_juridica': 'Erro na API',
-                'interpretacao': 'Erro na API',
-                'sao_similares': None
-            }
-    except requests.exceptions.Timeout:
-        return {
-            'sucesso': False,
-            'erro': 'Timeout na chamada da API',
-            'analise_juridica': 'Timeout',
-            'interpretacao': 'Timeout',
-            'sao_similares': None
-        }
-    except Exception as e:
-        return {
-            'sucesso': False,
-            'erro': str(e),
-            'analise_juridica': f'Erro: {str(e)}',
-            'interpretacao': 'Erro ao acessar API',
-            'sao_similares': None
-        }
+    # Tenta até max_tentativas vezes
+    for tentativa in range(1, max_tentativas + 1):
+        try:
+            if tentativa > 1:
+                print(f"   🔄 Tentativa {tentativa}/{max_tentativas}...")
+
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
+
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'sucesso': True,
+                    'analise_juridica': data.get('analise_juridica', 'N/A'),
+                    'interpretacao': data.get('interpretacao', 'N/A'),
+                    'sao_similares': data.get('sao_similares', False)
+                }
+            else:
+                return {
+                    'sucesso': False,
+                    'erro': f'API retornou status {response.status_code}',
+                    'analise_juridica': 'Erro na API',
+                    'interpretacao': f'Erro HTTP {response.status_code}',
+                    'sao_similares': None
+                }
+        except requests.exceptions.Timeout as e:
+            ultima_excecao = e
+            if tentativa < max_tentativas:
+                print(f"   ⏱️ Timeout na tentativa {tentativa}, tentando novamente...")
+                continue
+            else:
+                print(f"   ❌ Timeout após {max_tentativas} tentativas")
+                return {
+                    'sucesso': False,
+                    'erro': f'Timeout após {max_tentativas} tentativas (180s cada)',
+                    'analise_juridica': 'Timeout',
+                    'interpretacao': f'API não respondeu após {max_tentativas} tentativas',
+                    'sao_similares': None
+                }
+        except Exception as e:
+            ultima_excecao = e
+            print(f"   ❌ Erro na tentativa {tentativa}: {str(e)}")
+            if tentativa < max_tentativas:
+                continue
+            else:
+                return {
+                    'sucesso': False,
+                    'erro': str(e),
+                    'analise_juridica': f'Erro: {str(e)}',
+                    'interpretacao': 'Erro ao acessar API',
+                    'sao_similares': None
+                }
+
+    # Se chegou aqui, todas as tentativas falharam
+    return {
+        'sucesso': False,
+        'erro': f'Falha após {max_tentativas} tentativas: {str(ultima_excecao)}',
+        'analise_juridica': 'Erro',
+        'interpretacao': 'Todas as tentativas falharam',
+        'sao_similares': None
+    }
 
 
 class PublicacaoProcessor:
@@ -507,9 +534,11 @@ class PublicacaoProcessor:
             return (tarefa, comparacao)
 
         # Calcula timeout dinâmico: estimativa de tempo necessário + margem
-        # Com 5 workers e 60s por tarefa: (tarefas / workers) * 60s * 1.5 de margem
-        timeout_total = max(3600, int((len(tarefas_api) / 5) * 60 * 1.5))  # Mínimo 1 hora
-        print(f"⏱️ Timeout configurado: {timeout_total / 60:.1f} minutos")
+        # Com 5 workers e 180s por tentativa * 2 tentativas = 360s por tarefa
+        # Tempo estimado: (tarefas / workers) * 360s * 1.3 de margem
+        timeout_total = max(7200, int((len(tarefas_api) / 5) * 360 * 1.3))  # Mínimo 2 horas
+        print(f"⏱️ Timeout total configurado: {timeout_total / 60:.1f} minutos")
+        print(f"⏱️ Timeout por tarefa: 400s (2 tentativas de 180s + margem)")
 
         # Executa tarefas em paralelo com pool de 5 threads
         cancelado = False
@@ -532,7 +561,7 @@ class PublicacaoProcessor:
                         break
 
                 try:
-                    tarefa, comparacao = future.result(timeout=120)  # 120 segundos por tarefa individual
+                    tarefa, comparacao = future.result(timeout=400)  # 400 segundos por tarefa (2 tentativas de 180s)
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
