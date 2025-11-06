@@ -592,16 +592,31 @@ class PublicacaoProcessor:
                     if progresso and progresso.get('cancelado'):
                         print(f"\n{'='*80}")
                         print(f"⚠️  PROCESSAMENTO CANCELADO PELO USUÁRIO")
+                        print(f"📊 Gerando relatório parcial com {len(resultados)} comparações...")
                         print(f"{'='*80}\n")
                         cancelado = True
-                        # Cancela futures pendentes
-                        for f in futures:
-                            if not f.done():
-                                f.cancel()
+
+                        # Gera relatório parcial IMEDIATAMENTE
+                        for grupo_info in relatorio['grupos']:
+                            if '_tarefas' in grupo_info:
+                                for ocorrencia_num, tarefa_idx in grupo_info['_tarefas']:
+                                    if tarefa_idx in resultados:
+                                        grupo_info['comparacoes_api'].append(resultados[tarefa_idx])
+                                del grupo_info['_tarefas']
+
+                        # Salva relatório parcial imediatamente
+                        with progresso_lock:
+                            progresso_global[self.session_id]['relatorio'] = relatorio
+                            progresso_global[self.session_id]['concluido'] = True
+
+                        print(f"✅ Relatório parcial gerado! Cancelando tarefas pendentes...")
+
+                        # ⚡ CANCELA TUDO IMEDIATAMENTE - MODO EMERGÊNCIA
+                        executor.shutdown(wait=False, cancel_futures=True)
                         break
 
                 try:
-                    tarefa, comparacao = future.result(timeout=120)  # 120 segundos por tarefa (2 tentativas de 50s + backoff)
+                    tarefa, comparacao = future.result(timeout=5)  # ⚡ 5 segundos - resposta rápida
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
@@ -671,14 +686,15 @@ class PublicacaoProcessor:
                 except Exception as e:
                     print(f"❌ Erro ao processar tarefa: {str(e)}")
 
-        # Terceiro passo: Inserir resultados na ordem correta nos grupos
-        for grupo_info in relatorio['grupos']:
-            if '_tarefas' in grupo_info:
-                for ocorrencia_num, tarefa_idx in grupo_info['_tarefas']:
-                    if tarefa_idx in resultados:
-                        grupo_info['comparacoes_api'].append(resultados[tarefa_idx])
-                # Remove lista temporária
-                del grupo_info['_tarefas']
+        # Terceiro passo: Inserir resultados na ordem correta nos grupos (pula se cancelado)
+        if not cancelado:
+            for grupo_info in relatorio['grupos']:
+                if '_tarefas' in grupo_info:
+                    for ocorrencia_num, tarefa_idx in grupo_info['_tarefas']:
+                        if tarefa_idx in resultados:
+                            grupo_info['comparacoes_api'].append(resultados[tarefa_idx])
+                    # Remove lista temporária
+                    del grupo_info['_tarefas']
 
         # Resumo final
         tempo_total = time.time() - tempo_inicio
@@ -691,9 +707,14 @@ class PublicacaoProcessor:
 
         taxa_final = len(resultados) / tempo_total if tempo_total > 0 else 0
 
-        print(f"\n{'='*80}")
-        print(f"✅ PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
-        print(f"{'='*80}")
+        if not cancelado:
+            print(f"\n{'='*80}")
+            print(f"✅ PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
+            print(f"{'='*80}")
+        else:
+            print(f"\n{'='*80}")
+            print(f"⚠️  PROCESSAMENTO CANCELADO - RELATÓRIO PARCIAL GERADO")
+            print(f"{'='*80}")
         print(f"│")
         print(f"│ 📊 ESTATÍSTICAS FINAIS:")
         print(f"│")
