@@ -63,19 +63,13 @@ class PublicacaoProcessor:
 
     def identificar_duplicatas(self) -> List[Tuple[str, List[Dict]]]:
         """
-        Identifica publicações duplicadas baseado em critérios
-        Critérios: numeroProcesso + dataPublicacao + anoPublicacao
+        Identifica publicações duplicadas baseado apenas no numeroProcesso
         """
         grupos_duplicatas = defaultdict(list)
 
         for idx, pub in enumerate(self.publicacoes):
-            # Cria chave única baseada nos campos principais
-            chave = (
-                pub.get('numeroProcesso', ''),
-                pub.get('dataPublicacao', ''),
-                pub.get('anoPublicacao', ''),
-                pub.get('codPublicacao', '')
-            )
+            # Chave de duplicidade: apenas numeroProcesso
+            chave = pub.get('numeroProcesso', '')
 
             grupos_duplicatas[chave].append({
                 'indice': idx,
@@ -112,14 +106,17 @@ class PublicacaoProcessor:
             f.write("=" * 80 + "\n\n")
 
             for idx, (chave, grupo) in enumerate(self.duplicatas, 1):
+                # Pega dados da primeira publicação para exibição
+                primeira_pub = grupo[0]['dados']
+
                 f.write(f"\n{'*' * 80}\n")
                 f.write(f"GRUPO DE DUPLICATAS #{idx}\n")
                 f.write(f"{'*' * 80}\n\n")
 
-                f.write(f"Número do Processo: {chave[0]}\n")
-                f.write(f"Data de Publicação: {chave[1]}\n")
-                f.write(f"Ano de Publicação: {chave[2]}\n")
-                f.write(f"Código de Publicação: {chave[3]}\n")
+                f.write(f"Número do Processo: {chave}\n")  # Agora chave é apenas numeroProcesso
+                f.write(f"Data de Publicação: {primeira_pub.get('dataPublicacao', 'N/A')}\n")
+                f.write(f"Ano de Publicação: {primeira_pub.get('anoPublicacao', 'N/A')}\n")
+                f.write(f"Código de Publicação: {primeira_pub.get('codPublicacao', 'N/A')}\n")
                 f.write(f"Quantidade de duplicatas: {len(grupo)}\n\n")
 
                 for i, item in enumerate(grupo, 1):

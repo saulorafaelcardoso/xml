@@ -37,3 +37,4 @@ Thumbs.db
 # *.xml
 # !exemplo_input.xml
 app.log
+app.pid

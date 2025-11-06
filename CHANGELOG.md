@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.02 - 2025-11-06
+
+### Alterado
+- **Regra de duplicidade simplificada**: Agora identifica duplicatas apenas pelo campo `numeroProcesso`
+- Anteriormente verificava: numeroProcesso + dataPublicacao + anoPublicacao + codPublicacao
+- Agora verifica apenas: numeroProcesso
+
+### Adicionado
+- DataTables na página de relatório para melhor visualização
+- Tabela interativa com busca, ordenação e paginação
+- Tradução para português (pt-BR)
+- 9 colunas: Grupo, Nº Processo, Data Pub., Ano, Código, Ocorrência, Status, Diário, Órgão
+- Exibição de 25 registros por página
+
 ## v1.01 - 2025-11-06
 
 ### Corrigido

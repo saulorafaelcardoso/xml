@@ -123,16 +123,12 @@ class PublicacaoProcessor:
         return publicacoes
 
     def identificar_duplicatas(self):
-        """Identifica publicações duplicadas"""
+        """Identifica publicações duplicadas baseado apenas no numeroProcesso"""
         grupos_duplicatas = defaultdict(list)
 
         for idx, pub in enumerate(self.publicacoes):
-            chave = (
-                pub.get('numeroProcesso', ''),
-                pub.get('dataPublicacao', ''),
-                pub.get('anoPublicacao', ''),
-                pub.get('codPublicacao', '')
-            )
+            # Chave de duplicidade: apenas numeroProcesso
+            chave = pub.get('numeroProcesso', '')
 
             grupos_duplicatas[chave].append({
                 'indice': idx,
@@ -166,12 +162,15 @@ class PublicacaoProcessor:
         )
 
         for idx, (chave, grupo) in enumerate(self.duplicatas, 1):
+            # Pega dados da primeira publicação do grupo para exibição
+            primeira_pub = grupo[0]['dados']
+
             grupo_info = {
                 'numero': idx,
-                'numero_processo': chave[0],
-                'data_publicacao': chave[1],
-                'ano_publicacao': chave[2],
-                'cod_publicacao': chave[3],
+                'numero_processo': chave,  # Agora chave é apenas o numeroProcesso
+                'data_publicacao': primeira_pub.get('dataPublicacao', 'N/A'),
+                'ano_publicacao': primeira_pub.get('anoPublicacao', 'N/A'),
+                'cod_publicacao': primeira_pub.get('codPublicacao', 'N/A'),
                 'quantidade': len(grupo),
                 'ocorrencias': []
             }

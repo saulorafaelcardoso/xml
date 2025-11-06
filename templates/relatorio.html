@@ -2,6 +2,44 @@
 
 {% block title %}Relatório de Duplicatas - Processador XML SOAP{% endblock %}
 
+{% block extra_head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<style>
+    .dataTables_wrapper {
+        padding: 20px 0;
+    }
+    table.dataTable {
+        width: 100% !important;
+        margin-top: 20px !important;
+    }
+    table.dataTable thead th {
+        background: #667eea;
+        color: white;
+        padding: 12px;
+    }
+    table.dataTable tbody td {
+        padding: 10px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .status-manter {
+        background: #d4edda;
+        color: #155724;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    .status-remover {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="relatorio-section">
     <div class="actions">
@@ -40,6 +78,49 @@
                 <span class="summary-label">Publicações Únicas (após limpeza):</span>
                 <span class="summary-value highlight-success">{{ relatorio.publicacoes_unicas }}</span>
             </div>
+        </div>
+
+        <!-- DataTable -->
+        <div class="duplicatas">
+            <h3>📋 Tabela de Duplicatas</h3>
+            <table id="tabelaDuplicatas" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Grupo</th>
+                        <th>Nº Processo</th>
+                        <th>Data Pub.</th>
+                        <th>Ano</th>
+                        <th>Código</th>
+                        <th>Ocorrência</th>
+                        <th>Status</th>
+                        <th>Diário</th>
+                        <th>Órgão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for grupo in relatorio.grupos %}
+                        {% for ocorrencia in grupo.ocorrencias %}
+                        <tr>
+                            <td>{{ grupo.numero }}</td>
+                            <td>{{ grupo.numero_processo }}</td>
+                            <td>{{ grupo.data_publicacao }}</td>
+                            <td>{{ grupo.ano_publicacao }}</td>
+                            <td>{{ grupo.cod_publicacao }}</td>
+                            <td>{{ ocorrencia.numero }}/{{ grupo.quantidade }}</td>
+                            <td>
+                                {% if ocorrencia.numero == 1 %}
+                                <span class="status-manter">✓ Manter</span>
+                                {% else %}
+                                <span class="status-remover">✗ Remover</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ ocorrencia.diario }}</td>
+                            <td>{{ ocorrencia.orgao }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="duplicatas">
@@ -110,4 +191,23 @@
         {% endif %}
     </div>
 </div>
+
+<!-- jQuery e DataTables JS -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#tabelaDuplicatas').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/pt-BR.json'
+        },
+        order: [[0, 'asc'], [5, 'asc']],
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+        responsive: true,
+        dom: 'Bfrtip',
+        buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
+    });
+});
+</script>
 {% endblock %}
