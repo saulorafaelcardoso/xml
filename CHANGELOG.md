@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.05 - 2025-11-06
+
+### Otimizado
+- **Economia de chamadas à API de duplicidades**: Sistema agora só chama API quando realmente necessário
+- 3 níveis de otimização antes de chamar API:
+  1. Verifica se ambos os textos têm conteúdo (pula se vazio)
+  2. Compara textos localmente primeiro (pula se idênticos)
+  3. Valida se numeroProcesso é realmente igual (pula se diferente)
+
+### Adicionado
+- Logs detalhados de consumo de API:
+  - Total de comparações previstas
+  - Chamadas realizadas vs economizadas
+  - Percentual de economia
+- Validação extra de numeroProcesso em cada ocorrência
+- Comparação local para textos idênticos (sem consumir API)
+
+### Exemplo de logs
+```
+📊 Total de grupos de duplicatas: 5
+📊 Total de comparações necessárias: 12
+💰 Chamadas de API previstas: 12
+
+⏭️ Grupo 1, ocorrência 2: Textos idênticos, pulando API
+🔍 Grupo 2, ocorrência 2: Chamando API (processo: 0800123-45.2024.8.24.0000)
+
+✅ Chamadas de API realizadas: 4
+⏭️ Chamadas economizadas: 8
+💰 Economia: 66.7%
+```
+
 ## v1.04 - 2025-11-06
 
 ### Adicionado

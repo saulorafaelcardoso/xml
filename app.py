@@ -314,7 +314,21 @@ class PublicacaoProcessor:
             relatorio['grupos_duplicatas']
         )
 
+        # Calcula quantas chamadas de API serão necessárias
+        total_comparacoes = sum(len(grupo) - 1 for _, grupo in self.duplicatas)
+        print(f"\n📊 Total de grupos de duplicatas: {len(self.duplicatas)}")
+        print(f"📊 Total de comparações necessárias: {total_comparacoes}")
+        print(f"💰 Chamadas de API previstas: {total_comparacoes}\n")
+
+        chamadas_realizadas = 0
+        chamadas_puladas = 0
+
         for idx, (chave, grupo) in enumerate(self.duplicatas, 1):
+            # Validação: só processa se houver numeroProcesso válido
+            if not chave or chave.strip() == '':
+                print(f"⚠️ Grupo {idx}: numeroProcesso vazio, pulando...")
+                continue
+
             # Pega dados da primeira publicação do grupo para exibição
             primeira_pub = grupo[0]['dados']
             texto_referencia = primeira_pub.get('despachoPublicacao', '')
@@ -334,6 +348,11 @@ class PublicacaoProcessor:
                 pub = item['dados']
                 texto_atual = pub.get('despachoPublicacao', '')
 
+                # Validação: verifica se numeroProcesso é realmente o mesmo
+                numero_processo_atual = pub.get('numeroProcesso', '')
+                if numero_processo_atual != chave:
+                    print(f"⚠️ Aviso: numeroProcesso diferente no grupo {idx}, ocorrência {i}")
+
                 ocorrencia = {
                     'numero': i,
                     'indice': item['indice'],
@@ -348,12 +367,42 @@ class PublicacaoProcessor:
 
                 # Compara com a primeira ocorrência se não for a primeira
                 if i > 1:
-                    print(f"🔍 Comparando ocorrência {i} do grupo {idx} via API...")
-                    comparacao = comparar_textos_api(texto_referencia, texto_atual)
-                    comparacao['ocorrencia_comparada'] = i
-                    grupo_info['comparacoes_api'].append(comparacao)
+                    # Otimização 1: Só chama API se ambos os textos têm conteúdo
+                    if not texto_referencia or not texto_atual:
+                        print(f"⏭️ Grupo {idx}, ocorrência {i}: Texto vazio, pulando API")
+                        chamadas_puladas += 1
+                        continue
+
+                    # Otimização 2: Se textos são idênticos, não precisa chamar API
+                    if texto_referencia.strip() == texto_atual.strip():
+                        print(f"⏭️ Grupo {idx}, ocorrência {i}: Textos idênticos, pulando API")
+                        comparacao = {
+                            'sucesso': True,
+                            'ocorrencia_comparada': i,
+                            'analise_juridica': 'Textos idênticos (comparação local)',
+                            'interpretacao': 'Os despachos são exatamente iguais',
+                            'sao_similares': True
+                        }
+                        grupo_info['comparacoes_api'].append(comparacao)
+                        chamadas_puladas += 1
+                        continue
+
+                    # Otimização 3: Só chama API se numeroProcesso for realmente igual
+                    if numero_processo_atual == chave:
+                        print(f"🔍 Grupo {idx}, ocorrência {i}: Chamando API (processo: {chave})")
+                        comparacao = comparar_textos_api(texto_referencia, texto_atual)
+                        comparacao['ocorrencia_comparada'] = i
+                        grupo_info['comparacoes_api'].append(comparacao)
+                        chamadas_realizadas += 1
+                    else:
+                        print(f"⚠️ Grupo {idx}, ocorrência {i}: numeroProcesso diferente, pulando API")
+                        chamadas_puladas += 1
 
             relatorio['grupos'].append(grupo_info)
+
+        print(f"\n✅ Chamadas de API realizadas: {chamadas_realizadas}")
+        print(f"⏭️ Chamadas economizadas: {chamadas_puladas}")
+        print(f"💰 Economia: {(chamadas_puladas / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%\n")
 
         return relatorio
 
