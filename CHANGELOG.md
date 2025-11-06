@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.04 - 2025-11-06
+
+### Adicionado
+- **Correção automática de encoding**: Sistema agora detecta e corrige problemas de encoding automaticamente durante o upload
+- Integração direta no `app.py` - não precisa mais usar script separado
+- Detecta 9 tipos de encoding: UTF-8, UTF-8-sig, Windows-1252, CP1252, Latin-1, ISO-8859-1, ISO-8859-15, CP850, CP437
+- Converte automaticamente para UTF-8 antes de processar o XML
+
+### Corrigido
+- Erro "Caractere problemático: 'i'" com Di�rio, Justi�a, Eletr�nico
+- Arquivos com encoding Windows-1252 agora são detectados e convertidos automaticamente
+- Eliminada necessidade de usar `fix_encoding.py` manualmente
+
+### Como funciona
+1. Ao fazer upload, sistema detecta encoding do arquivo
+2. Se não for UTF-8, converte automaticamente
+3. Processa o XML normalmente
+
 ## v1.03 - 2025-11-06
 
 ### Adicionado

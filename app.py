@@ -30,6 +30,98 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 
+def detectar_encoding(filepath):
+    """
+    Detecta o encoding correto do arquivo XML
+    Testa vários encodings e retorna o melhor
+    """
+    encodings = [
+        'utf-8',
+        'utf-8-sig',
+        'windows-1252',
+        'cp1252',
+        'latin-1',
+        'iso-8859-1',
+        'iso-8859-15',
+        'cp850',
+        'cp437'
+    ]
+
+    melhor_encoding = None
+    melhor_score = -999999
+
+    for encoding in encodings:
+        try:
+            with open(filepath, 'r', encoding=encoding) as f:
+                conteudo = f.read()
+
+            # Conta caracteres corrompidos
+            corrupted = conteudo.count('�')
+
+            # Conta caracteres acentuados válidos
+            acentuados = sum([
+                conteudo.count('á'), conteudo.count('à'), conteudo.count('ã'),
+                conteudo.count('é'), conteudo.count('ê'),
+                conteudo.count('í'), conteudo.count('ó'), conteudo.count('ô'),
+                conteudo.count('õ'), conteudo.count('ú'), conteudo.count('ç')
+            ])
+
+            # Score: mais acentos = melhor, caracteres corrompidos = péssimo
+            score = acentuados - (corrupted * 10)
+
+            print(f"  Encoding {encoding:15s}: {acentuados:3d} acentos, {corrupted:3d} corrompidos, score: {score}")
+
+            if score > melhor_score:
+                melhor_score = score
+                melhor_encoding = encoding
+
+            # Se não tem corrupção e tem acentos, encontramos!
+            if corrupted == 0 and acentuados > 0:
+                print(f"✓ Encoding correto detectado: {encoding}")
+                return encoding
+
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        except Exception:
+            continue
+
+    print(f"✓ Melhor encoding detectado: {melhor_encoding}")
+    return melhor_encoding or 'utf-8'
+
+
+def corrigir_encoding_arquivo(filepath):
+    """
+    Corrige o encoding do arquivo XML automaticamente
+    Retorna o caminho do arquivo corrigido
+    """
+    print(f"🔍 Detectando encoding de {os.path.basename(filepath)}...")
+
+    encoding_correto = detectar_encoding(filepath)
+
+    # Se já é UTF-8, não precisa corrigir
+    if encoding_correto == 'utf-8':
+        print("✓ Arquivo já está em UTF-8")
+        return filepath
+
+    # Lê com encoding correto e salva em UTF-8
+    print(f"🔧 Convertendo de {encoding_correto} para UTF-8...")
+
+    try:
+        with open(filepath, 'r', encoding=encoding_correto) as f:
+            conteudo = f.read()
+
+        # Salva como UTF-8
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(conteudo)
+
+        print(f"✓ Arquivo convertido com sucesso para UTF-8")
+        return filepath
+
+    except Exception as e:
+        print(f"✗ Erro ao converter: {str(e)}")
+        return filepath
+
+
 def comparar_textos_api(texto1, texto2):
     """
     Compara dois textos usando a API de duplicidades
@@ -98,7 +190,11 @@ class PublicacaoProcessor:
     def carregar_xml(self):
         """Carrega o arquivo XML"""
         try:
-            # Tenta carregar normalmente
+            # Corrige encoding automaticamente antes de parsear
+            print(f"📄 Processando arquivo: {os.path.basename(self.xml_path)}")
+            corrigir_encoding_arquivo(self.xml_path)
+
+            # Tenta carregar o XML
             self.tree = ET.parse(self.xml_path)
             self.root = self.tree.getroot()
             return True, "XML carregado com sucesso"
