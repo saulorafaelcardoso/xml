@@ -194,7 +194,15 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
             # Pequeno delay aleatório para evitar sobrecarga simultânea
             time.sleep(random.uniform(0.1, 0.5))
 
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
+            # Log ANTES da chamada
+            inicio_chamada = time.time()
+            print(f"   📡 Chamando API (timeout: 180s)...")
+
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=180)
+
+            # Log DEPOIS da chamada
+            tempo_resposta = time.time() - inicio_chamada
+            print(f"   ✓ API respondeu em {tempo_resposta:.1f}s")
 
             if response.status_code == 200:
                 data = response.json()
@@ -205,6 +213,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
                     'sao_similares': data.get('sao_similares', False)
                 }
             else:
+                print(f"   ⚠️ API retornou status {response.status_code}")
                 return {
                     'sucesso': False,
                     'erro': f'API retornou status {response.status_code}',
@@ -214,14 +223,16 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
                 }
         except requests.exceptions.Timeout as e:
             ultima_excecao = e
+            tempo_decorrido = time.time() - inicio_chamada
+            print(f"   ⏱️ Timeout após {tempo_decorrido:.0f}s na tentativa {tentativa}")
             if tentativa < max_tentativas:
-                print(f"   ⏱️ Timeout na tentativa {tentativa}, aguardando antes de retry...")
+                print(f"   ⏳ Aguardando antes de retry...")
                 continue
             else:
-                print(f"   ❌ Timeout após {max_tentativas} tentativas")
+                print(f"   ❌ Timeout definitivo após {max_tentativas} tentativas")
                 return {
                     'sucesso': False,
-                    'erro': f'Timeout após {max_tentativas} tentativas (120s cada)',
+                    'erro': f'Timeout após {max_tentativas} tentativas (180s cada)',
                     'analise_juridica': 'Timeout',
                     'interpretacao': f'API não respondeu após {max_tentativas} tentativas',
                     'sao_similares': None
@@ -552,11 +563,11 @@ class PublicacaoProcessor:
             return (tarefa, comparacao)
 
         # Calcula timeout dinâmico: estimativa de tempo necessário + margem
-        # Com 10 workers e 120s por tentativa * 2 tentativas + backoff = 260s por tarefa
-        # Tempo estimado: (tarefas / workers) * 260s * 1.3 de margem
-        timeout_total = max(3600, int((len(tarefas_api) / 10) * 260 * 1.3))  # Mínimo 1 hora
+        # Com 10 workers e 180s por tentativa * 2 tentativas + backoff = 370s por tarefa
+        # Tempo estimado: (tarefas / workers) * 370s * 1.3 de margem
+        timeout_total = max(3600, int((len(tarefas_api) / 10) * 370 * 1.3))  # Mínimo 1 hora
         print(f"⏱️ Timeout total configurado: {timeout_total / 60:.1f} minutos")
-        print(f"⏱️ Timeout por tarefa: 300s (2 tentativas de 120s + backoff + margem)")
+        print(f"⏱️ Timeout por tarefa: 400s (2 tentativas de 180s + backoff + margem)")
         print(f"🚀 Workers paralelos: 10 (otimizado para evitar sobrecarga na API)")
 
         # Executa tarefas em paralelo com pool de 10 threads
@@ -590,7 +601,7 @@ class PublicacaoProcessor:
                         break
 
                 try:
-                    tarefa, comparacao = future.result(timeout=300)  # 300 segundos por tarefa (2 tentativas de 120s + backoff)
+                    tarefa, comparacao = future.result(timeout=400)  # 400 segundos por tarefa (2 tentativas de 180s + backoff)
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
