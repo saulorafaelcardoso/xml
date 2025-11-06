@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.06 - 2025-11-06
+
+### Corrigido - IMPORTANTE
+- **Campo de comparação alterado**: API agora compara `processoPublicacao` (antes era `despachoPublicacao`)
+- **Critério de duplicidade**: Publicação só é considerada duplicata se API retornar `sao_similares: true`
+
+### Alterado
+- Campo exibido no template: "Processo" ao invés de "Despacho"
+- Mensagens de log mais claras sobre o resultado da API:
+  - ✅ "API: Similares (duplicata confirmada)" quando `sao_similares: true`
+  - ❌ "API: Diferentes (NÃO é duplicata)" quando `sao_similares: false`
+  - ⚠️ "API: Erro ou resultado indefinido" quando houver erro
+
+### Adicionado
+- **Novas colunas na tabela DataTables**:
+  - **"Duplicada"**: Mostra se a API considerou duplicata (✓ Sim / ✗ Não / ⚠ Indefinido / Referência)
+  - **"Análise Jurídica"**: Exibe resumo (100 caracteres) da análise retornada pela API
+- Badges coloridos para identificar resultado:
+  - Verde (✓ Sim): Publicações similares segundo a API
+  - Vermelho (✗ Não): Publicações diferentes segundo a API
+  - Amarelo (⚠ Indefinido): Erro ou resultado indefinido
+  - Azul (Referência): Primeira ocorrência do grupo (usada como base de comparação)
+
+### Importante
+- A API agora é a fonte da verdade para determinar se duas publicações são duplicatas
+- Apenas quando `sao_similares: true` a publicação é tratada como duplicata
+
 ## v1.05 - 2025-11-06
 
 ### Otimizado

@@ -329,6 +329,16 @@ input[type="file"] {
     color: #333;
 }
 
+.badge-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.badge-secondary {
+    background: #6c757d;
+    color: white;
+}
+
 .grupo-info {
     background: #f8f9fa;
     padding: 15px 20px;
@@ -387,7 +397,7 @@ input[type="file"] {
     border-bottom: none;
 }
 
-.despacho {
+.processo {
     margin-top: 10px;
     padding: 10px;
     background: #f8f9fa;

@@ -95,6 +95,8 @@
                         <th>Status</th>
                         <th>Diário</th>
                         <th>Órgão</th>
+                        <th>Duplicada</th>
+                        <th>Análise Jurídica</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -116,6 +118,46 @@
                             </td>
                             <td>{{ ocorrencia.diario }}</td>
                             <td>{{ ocorrencia.orgao }}</td>
+                            <td>
+                                {% if ocorrencia.numero == 1 %}
+                                <span class="badge badge-info">Referência</span>
+                                {% else %}
+                                    {% set comparacao = namespace(encontrada=None) %}
+                                    {% for comp in grupo.comparacoes_api %}
+                                        {% if comp.ocorrencia_comparada == ocorrencia.numero %}
+                                            {% set comparacao.encontrada = comp %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if comparacao.encontrada %}
+                                        {% if comparacao.encontrada.sao_similares == True %}
+                                        <span class="badge badge-success">✓ Sim</span>
+                                        {% elif comparacao.encontrada.sao_similares == False %}
+                                        <span class="badge badge-danger">✗ Não</span>
+                                        {% else %}
+                                        <span class="badge badge-warning">⚠ Indefinido</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="badge badge-secondary">N/A</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if ocorrencia.numero == 1 %}
+                                -
+                                {% else %}
+                                    {% set comparacao = namespace(encontrada=None) %}
+                                    {% for comp in grupo.comparacoes_api %}
+                                        {% if comp.ocorrencia_comparada == ocorrencia.numero %}
+                                            {% set comparacao.encontrada = comp %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if comparacao.encontrada %}
+                                        {{ comparacao.encontrada.analise_juridica[:100] }}{% if comparacao.encontrada.analise_juridica|length > 100 %}...{% endif %}
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     {% endfor %}
@@ -166,8 +208,8 @@
                             <div><strong>Data Divulgação:</strong> {{ ocorrencia.data_divulgacao }}</div>
                             <div><strong>Data Cadastro:</strong> {{ ocorrencia.data_cadastro }}</div>
                             <div><strong>Código Integração:</strong> {{ ocorrencia.cod_integracao }}</div>
-                            {% if ocorrencia.despacho %}
-                            <div class="despacho"><strong>Despacho:</strong> {{ ocorrencia.despacho }}</div>
+                            {% if ocorrencia.processo %}
+                            <div class="processo"><strong>Processo:</strong> {{ ocorrencia.processo }}</div>
                             {% endif %}
                         </div>
                     </div>

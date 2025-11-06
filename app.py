@@ -331,7 +331,7 @@ class PublicacaoProcessor:
 
             # Pega dados da primeira publicação do grupo para exibição
             primeira_pub = grupo[0]['dados']
-            texto_referencia = primeira_pub.get('despachoPublicacao', '')
+            texto_referencia = primeira_pub.get('processoPublicacao', '')
 
             grupo_info = {
                 'numero': idx,
@@ -346,7 +346,7 @@ class PublicacaoProcessor:
 
             for i, item in enumerate(grupo, 1):
                 pub = item['dados']
-                texto_atual = pub.get('despachoPublicacao', '')
+                texto_atual = pub.get('processoPublicacao', '')
 
                 # Validação: verifica se numeroProcesso é realmente o mesmo
                 numero_processo_atual = pub.get('numeroProcesso', '')
@@ -361,7 +361,7 @@ class PublicacaoProcessor:
                     'data_divulgacao': pub.get('dataDivulgacao', 'N/A'),
                     'data_cadastro': pub.get('dataCadastro', 'N/A'),
                     'cod_integracao': pub.get('codIntegracao', 'N/A'),
-                    'despacho': texto_atual[:200] + '...' if len(texto_atual) > 200 else texto_atual
+                    'processo': texto_atual[:200] + '...' if len(texto_atual) > 200 else texto_atual
                 }
                 grupo_info['ocorrencias'].append(ocorrencia)
 
@@ -369,18 +369,18 @@ class PublicacaoProcessor:
                 if i > 1:
                     # Otimização 1: Só chama API se ambos os textos têm conteúdo
                     if not texto_referencia or not texto_atual:
-                        print(f"⏭️ Grupo {idx}, ocorrência {i}: Texto vazio, pulando API")
+                        print(f"⏭️ Grupo {idx}, ocorrência {i}: processoPublicacao vazio, pulando API")
                         chamadas_puladas += 1
                         continue
 
                     # Otimização 2: Se textos são idênticos, não precisa chamar API
                     if texto_referencia.strip() == texto_atual.strip():
-                        print(f"⏭️ Grupo {idx}, ocorrência {i}: Textos idênticos, pulando API")
+                        print(f"⏭️ Grupo {idx}, ocorrência {i}: processoPublicacao idênticos, pulando API")
                         comparacao = {
                             'sucesso': True,
                             'ocorrencia_comparada': i,
-                            'analise_juridica': 'Textos idênticos (comparação local)',
-                            'interpretacao': 'Os despachos são exatamente iguais',
+                            'analise_juridica': 'Processos idênticos (comparação local)',
+                            'interpretacao': 'Os processos são exatamente iguais',
                             'sao_similares': True
                         }
                         grupo_info['comparacoes_api'].append(comparacao)
@@ -392,6 +392,15 @@ class PublicacaoProcessor:
                         print(f"🔍 Grupo {idx}, ocorrência {i}: Chamando API (processo: {chave})")
                         comparacao = comparar_textos_api(texto_referencia, texto_atual)
                         comparacao['ocorrencia_comparada'] = i
+
+                        # Registra se API considerou similar ou não
+                        if comparacao.get('sao_similares') == True:
+                            print(f"   ✅ API: Similares (duplicata confirmada)")
+                        elif comparacao.get('sao_similares') == False:
+                            print(f"   ❌ API: Diferentes (NÃO é duplicata)")
+                        else:
+                            print(f"   ⚠️ API: Erro ou resultado indefinido")
+
                         grupo_info['comparacoes_api'].append(comparacao)
                         chamadas_realizadas += 1
                     else:
