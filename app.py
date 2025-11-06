@@ -35,13 +35,17 @@ progresso_lock = threading.Lock()
 def atualizar_progresso(session_id, mensagem, atual, total):
     """Atualiza o progresso de uma sessão"""
     with progresso_lock:
-        progresso_global[session_id] = {
+        # Mantém dados existentes e atualiza apenas o progresso
+        if session_id not in progresso_global:
+            progresso_global[session_id] = {}
+
+        progresso_global[session_id].update({
             'mensagem': mensagem,
             'atual': atual,
             'total': total,
             'porcentagem': int((atual / total * 100)) if total > 0 else 0,
             'timestamp': time.time()
-        }
+        })
 
 
 def obter_progresso(session_id):
