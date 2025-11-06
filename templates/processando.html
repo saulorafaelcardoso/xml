@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Processando - Processador XML SOAP{% endblock %}
+
+{% block extra_head %}
+<style>
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+    }
+
+    .progress-container {
+        background: white;
+        padding: 60px;
+        border-radius: 12px;
+        min-width: 600px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        text-align: center;
+    }
+
+    .progress-title {
+        font-size: 2rem;
+        color: #667eea;
+        margin-bottom: 30px;
+    }
+
+    .progress-message {
+        font-size: 1.1rem;
+        color: #666;
+        margin-bottom: 25px;
+        min-height: 30px;
+        font-weight: 500;
+    }
+
+    .progress-bar-container {
+        background: #e9ecef;
+        border-radius: 10px;
+        height: 40px;
+        overflow: hidden;
+        margin-bottom: 15px;
+    }
+
+    .progress-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .progress-stats {
+        text-align: center;
+        color: #666;
+        font-size: 1rem;
+        margin-top: 10px;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(102, 126, 234, 0.3);
+        border-radius: 50%;
+        border-top-color: #667eea;
+        animation: spin 1s ease-in-out infinite;
+        margin-left: 10px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="progress-container">
+    <div class="progress-title">
+        🔄 Processando XML
+    </div>
+    <div class="progress-message" id="progress-message">
+        Iniciando processamento...
+        <span class="spinner"></span>
+    </div>
+    <div class="progress-bar-container">
+        <div class="progress-bar" id="progress-bar">0%</div>
+    </div>
+    <div class="progress-stats" id="progress-stats">
+        Aguarde...
+    </div>
+</div>
+
+<script>
+    const sessionId = '{{ session_id }}';
+    let progressInterval = null;
+
+    function checkProgress() {
+        fetch('/progresso?session_id=' + sessionId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.erro) {
+                    document.getElementById('progress-message').innerHTML =
+                        '❌ Erro: ' + data.erro;
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("index") }}';
+                    }, 3000);
+                    return;
+                }
+
+                // Atualiza elementos da barra de progresso
+                const progressBar = document.getElementById('progress-bar');
+                const progressMessage = document.getElementById('progress-message');
+                const progressStats = document.getElementById('progress-stats');
+
+                progressBar.style.width = data.porcentagem + '%';
+                progressBar.textContent = data.porcentagem + '%';
+
+                let mensagem = data.mensagem || 'Processando...';
+                progressMessage.innerHTML = mensagem + '<span class="spinner"></span>';
+
+                if (data.atual && data.total) {
+                    progressStats.textContent = data.atual + ' / ' + data.total + ' comparações realizadas';
+                } else {
+                    progressStats.textContent = 'Processando...';
+                }
+
+                // Se concluído, redireciona para o relatório
+                if (data.concluido || data.porcentagem >= 100) {
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+
+                    progressMessage.innerHTML = '✅ Processamento concluído! Redirecionando...';
+
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("relatorio") }}';
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar progresso:', error);
+            });
+    }
+
+    // Inicia monitoramento imediatamente
+    checkProgress();
+    progressInterval = setInterval(checkProgress, 500);
+</script>
+{% endblock %}

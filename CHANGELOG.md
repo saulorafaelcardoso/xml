@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.08 - 2025-11-06
+
+### Corrigido - IMPORTANTE
+- **Barra de progresso agora aparece durante o upload/processamento** (antes só aparecia depois)
+- Fluxo correto: Upload → Barra de progresso → Relatório
+
+### Alterado
+- Processamento agora roda em thread separada (background)
+- Upload redireciona imediatamente para página de processamento
+- Nova rota `/processando` com barra de progresso em tela cheia
+- Rota `/relatorio` agora pega dados já processados (não reprocessa)
+
+### Adicionado
+- Template `processando.html` - página dedicada para mostrar progresso
+- Spinner animado durante processamento
+- Auto-redirecionamento para relatório ao concluir
+- Tratamento de erros com mensagem e redirecionamento
+
+### Melhorias UX
+- Feedback visual IMEDIATO ao clicar em "Processar Arquivo"
+- Usuário vê barra de progresso desde o início
+- Não precisa esperar "em branco" durante processamento
+- Experiência mais fluida e profissional
+
 ## v1.07 - 2025-11-06
 
 ### Adicionado

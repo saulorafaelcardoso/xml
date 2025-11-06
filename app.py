@@ -512,6 +512,46 @@ def index():
     return render_template('index.html')
 
 
+def processar_xml_background(filepath, session_id):
+    """Processa XML em background thread"""
+    try:
+        atualizar_progresso(session_id, 'Carregando arquivo XML...', 0, 100)
+
+        processor = PublicacaoProcessor(filepath, session_id=session_id)
+        success, message = processor.carregar_xml()
+
+        if not success:
+            atualizar_progresso(session_id, f'Erro: {message}', 0, 100)
+            with progresso_lock:
+                progresso_global[session_id]['erro'] = message
+            return
+
+        atualizar_progresso(session_id, 'Extraindo publicações...', 10, 100)
+        processor.extrair_publicacoes()
+
+        atualizar_progresso(session_id, 'Identificando duplicatas...', 20, 100)
+        processor.identificar_duplicatas()
+
+        atualizar_progresso(session_id, 'Gerando relatório...', 30, 100)
+        # O gerar_relatorio_html já atualiza o progresso internamente
+        relatorio = processor.gerar_relatorio_html()
+
+        # Salva resultado no progresso
+        with progresso_lock:
+            progresso_global[session_id]['relatorio'] = relatorio
+            progresso_global[session_id]['total_publicacoes'] = len(processor.publicacoes)
+            progresso_global[session_id]['total_duplicatas'] = len(processor.duplicatas)
+            progresso_global[session_id]['concluido'] = True
+
+        atualizar_progresso(session_id, 'Processamento concluído!', 100, 100)
+
+    except Exception as e:
+        print(f"Erro no processamento background: {str(e)}")
+        atualizar_progresso(session_id, f'Erro: {str(e)}', 0, 100)
+        with progresso_lock:
+            progresso_global[session_id]['erro'] = str(e)
+
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """Processa upload do arquivo XML"""
@@ -532,52 +572,57 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Processa o XML (passa session_id para tracking de progresso)
-        session_id = session.get('session_id', session.sid if hasattr(session, 'sid') else str(time.time()))
+        # Gera session_id para tracking
+        session_id = str(time.time()) + "_" + str(os.getpid())
         session['session_id'] = session_id
-
-        processor = PublicacaoProcessor(filepath, session_id=session_id)
-        success, message = processor.carregar_xml()
-
-        if not success:
-            flash(message, 'error')
-            return redirect(url_for('index'))
-
-        processor.extrair_publicacoes()
-        processor.identificar_duplicatas()
-
-        # Salva informações na sessão
         session['current_file'] = filename
-        session['total_publicacoes'] = len(processor.publicacoes)
-        session['total_duplicatas'] = len(processor.duplicatas)
 
-        return redirect(url_for('relatorio'))
+        # Inicia processamento em background
+        thread = threading.Thread(target=processar_xml_background, args=(filepath, session_id))
+        thread.daemon = True
+        thread.start()
+
+        # Redireciona para página de processamento
+        return redirect(url_for('processando'))
 
     flash('Tipo de arquivo não permitido. Use apenas arquivos .xml', 'error')
     return redirect(url_for('index'))
 
 
+@app.route('/processando')
+def processando():
+    """Página intermediária que mostra barra de progresso"""
+    if 'session_id' not in session:
+        flash('Nenhum processamento em andamento', 'warning')
+        return redirect(url_for('index'))
+
+    return render_template('processando.html', session_id=session['session_id'])
+
+
 @app.route('/relatorio')
 def relatorio():
     """Exibe relatório de duplicatas"""
-    if 'current_file' not in session:
+    if 'current_file' not in session or 'session_id' not in session:
         flash('Nenhum arquivo processado. Faça upload de um arquivo XML primeiro.', 'warning')
         return redirect(url_for('index'))
 
     filename = session['current_file']
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    session_id = session['session_id']
 
-    # Usa session_id para tracking
-    session_id = session.get('session_id', str(time.time()))
+    # Pega dados do processamento em background
+    progresso = obter_progresso(session_id)
 
-    processor = PublicacaoProcessor(filepath, session_id=session_id)
-    processor.carregar_xml()
-    processor.extrair_publicacoes()
-    processor.identificar_duplicatas()
+    if not progresso or not progresso.get('concluido'):
+        flash('Processamento ainda não foi concluído', 'warning')
+        return redirect(url_for('processando'))
 
-    relatorio = processor.gerar_relatorio_html()
+    # Recupera dados salvos
+    with progresso_lock:
+        relatorio = progresso_global[session_id].get('relatorio')
+        session['total_publicacoes'] = progresso_global[session_id].get('total_publicacoes', 0)
+        session['total_duplicatas'] = progresso_global[session_id].get('total_duplicatas', 0)
 
-    # Limpa progresso após conclusão
+    # Limpa progresso após exibir
     limpar_progresso(session_id)
 
     return render_template('relatorio.html',

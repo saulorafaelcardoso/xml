@@ -37,83 +37,10 @@
         border-radius: 4px;
         font-weight: bold;
     }
-
-    /* Barra de progresso */
-    #progress-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 9999;
-        justify-content: center;
-        align-items: center;
-    }
-    #progress-overlay.show {
-        display: flex;
-    }
-    .progress-container {
-        background: white;
-        padding: 40px;
-        border-radius: 12px;
-        min-width: 500px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-    }
-    .progress-title {
-        font-size: 1.5rem;
-        color: #667eea;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-    .progress-message {
-        font-size: 1rem;
-        color: #666;
-        margin-bottom: 15px;
-        text-align: center;
-        min-height: 24px;
-    }
-    .progress-bar-container {
-        background: #e9ecef;
-        border-radius: 10px;
-        height: 30px;
-        overflow: hidden;
-        margin-bottom: 10px;
-    }
-    .progress-bar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        height: 100%;
-        width: 0%;
-        transition: width 0.3s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 0.9rem;
-    }
-    .progress-stats {
-        text-align: center;
-        color: #666;
-        font-size: 0.9rem;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Overlay de progresso -->
-<div id="progress-overlay">
-    <div class="progress-container">
-        <div class="progress-title">🔄 Processando Duplicatas</div>
-        <div class="progress-message" id="progress-message">Iniciando análise...</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progress-bar">0%</div>
-        </div>
-        <div class="progress-stats" id="progress-stats">0 / 0 comparações</div>
-    </div>
-</div>
-
 <div class="relatorio-section">
     <div class="actions">
         <a href="{{ url_for('index') }}" class="btn btn-secondary">
@@ -360,57 +287,6 @@ $(document).ready(function() {
         dom: 'Bfrtip',
         buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
     });
-
-    // Sistema de monitoramento de progresso
-    const sessionId = '{{ session_id }}';
-    let progressInterval = null;
-
-    function checkProgress() {
-        fetch('/progresso?session_id=' + sessionId)
-            .then(response => response.json())
-            .then(data => {
-                if (data.erro) {
-                    console.error('Erro ao obter progresso:', data.erro);
-                    return;
-                }
-
-                // Atualiza elementos da barra de progresso
-                const progressBar = document.getElementById('progress-bar');
-                const progressMessage = document.getElementById('progress-message');
-                const progressStats = document.getElementById('progress-stats');
-
-                if (progressBar && progressMessage && progressStats) {
-                    progressBar.style.width = data.porcentagem + '%';
-                    progressBar.textContent = data.porcentagem + '%';
-                    progressMessage.textContent = data.mensagem || 'Processando...';
-                    progressStats.textContent = data.atual + ' / ' + data.total + ' comparações';
-                }
-
-                // Se concluído (100%), esconde o overlay
-                if (data.porcentagem >= 100) {
-                    setTimeout(function() {
-                        document.getElementById('progress-overlay').classList.remove('show');
-                        if (progressInterval) {
-                            clearInterval(progressInterval);
-                            progressInterval = null;
-                        }
-                    }, 1000);
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao verificar progresso:', error);
-            });
-    }
-
-    // Inicia monitoramento se houver duplicatas
-    {% if tem_duplicatas %}
-        // Mostra overlay inicialmente
-        document.getElementById('progress-overlay').classList.add('show');
-
-        // Verifica progresso a cada 500ms
-        checkProgress();
-        progressInterval = setInterval(checkProgress, 500);
-    {% endif %}
 });
 </script>
 {% endblock %}
