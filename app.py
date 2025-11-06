@@ -352,7 +352,7 @@ class PublicacaoProcessor:
         print(f"\n📊 Total de grupos de duplicatas: {len(self.duplicatas)}")
         print(f"📊 Total de comparações necessárias: {total_comparacoes}")
         print(f"💰 Chamadas de API previstas: {total_comparacoes}")
-        print(f"⚡ Processamento paralelo: 3 análises simultâneas\n")
+        print(f"⚡ Processamento paralelo: 5 análises simultâneas\n")
 
         # Atualiza progresso inicial
         if self.session_id:
@@ -502,18 +502,20 @@ class PublicacaoProcessor:
 
             return (tarefa, comparacao)
 
-        # Executa tarefas em paralelo com pool de 10 threads
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        # Executa tarefas em paralelo com pool de 5 threads
+        with ThreadPoolExecutor(max_workers=5) as executor:
             # Submete todas as tarefas
             futures = {executor.submit(processar_tarefa_api, tarefa): tarefa for tarefa in tarefas_api}
 
             # Coleta resultados conforme ficam prontos
-            for future in as_completed(futures):
+            for future in as_completed(futures, timeout=300):  # 5 minutos de timeout total
                 try:
-                    tarefa, comparacao = future.result()
+                    tarefa, comparacao = future.result(timeout=60)  # 60 segundos por tarefa
                     # Armazena resultado com índice da tarefa para manter ordem
                     tarefa_idx = tarefas_api.index(tarefa)
                     resultados[tarefa_idx] = comparacao
+                except TimeoutError:
+                    print(f"⏱️ Timeout ao processar tarefa")
                 except Exception as e:
                     print(f"❌ Erro ao processar tarefa: {str(e)}")
 
@@ -529,7 +531,7 @@ class PublicacaoProcessor:
         print(f"\n✅ Chamadas de API realizadas: {stats['chamadas_realizadas']}")
         print(f"⏭️ Chamadas economizadas: {stats['chamadas_puladas']}")
         print(f"💰 Economia: {(stats['chamadas_puladas'] / total_comparacoes * 100) if total_comparacoes > 0 else 0:.1f}%")
-        print(f"⚡ Velocidade: 3x mais rápido com processamento paralelo\n")
+        print(f"⚡ Velocidade: 5x mais rápido com processamento paralelo\n")
 
         # Atualiza progresso final
         if self.session_id:
@@ -609,8 +611,15 @@ def processar_xml_background(filepath, session_id):
             progresso_global[session_id]['grupos_duplicatas'] = len(processor.duplicatas)
 
         atualizar_progresso(session_id, f'📊 Publicações: {len(processor.publicacoes)} | Grupos duplicados: {len(processor.duplicatas)}\nGerando relatório...', 30, 100)
+
         # O gerar_relatorio_html já atualiza o progresso internamente
-        relatorio = processor.gerar_relatorio_html()
+        try:
+            relatorio = processor.gerar_relatorio_html()
+        except Exception as e:
+            print(f"❌ Erro ao gerar relatório: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise  # Re-lança para ser capturado pelo except externo
 
         # Salva resultado no progresso
         with progresso_lock:
@@ -619,12 +628,16 @@ def processar_xml_background(filepath, session_id):
             progresso_global[session_id]['concluido'] = True
 
         atualizar_progresso(session_id, 'Processamento concluído!', 100, 100)
+        print(f"✅ Processamento concluído com sucesso para sessão {session_id}")
 
     except Exception as e:
-        print(f"Erro no processamento background: {str(e)}")
+        print(f"❌ Erro no processamento background: {str(e)}")
+        import traceback
+        traceback.print_exc()
         atualizar_progresso(session_id, f'Erro: {str(e)}', 0, 100)
         with progresso_lock:
             progresso_global[session_id]['erro'] = str(e)
+            progresso_global[session_id]['concluido'] = False
 
 
 @app.route('/upload', methods=['POST'])
