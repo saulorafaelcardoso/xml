@@ -820,17 +820,61 @@ class PublicacaoProcessor:
 
         return relatorio_parcial
 
-    def remover_duplicatas(self, output_path):
-        """Remove duplicatas e gera novo XML"""
+    def remover_duplicatas(self, output_path, relatorio=None):
+        """
+        Remove duplicatas e gera novo XML
+
+        Args:
+            output_path: Caminho do arquivo de saída
+            relatorio: Relatório com resultados da API (opcional)
+                      Se fornecido, só remove publicações confirmadas pela API
+        """
         if not self.duplicatas:
             import shutil
             shutil.copy(self.xml_path, output_path)
             return True, "Nenhuma duplicata encontrada, arquivo copiado"
 
         indices_remover = set()
-        for _, grupo in self.duplicatas:
-            for item in grupo[1:]:
-                indices_remover.add(item['indice'])
+
+        # Se temos relatório com resultados da API, usa-o para decidir o que remover
+        if relatorio and 'grupos' in relatorio:
+            print(f"\n{'='*80}")
+            print(f"🔍 VERIFICANDO DUPLICATAS COM RESULTADOS DA API")
+            print(f"{'='*80}\n")
+
+            for grupo_rel in relatorio['grupos']:
+                numero_processo = grupo_rel.get('numero_processo', '')
+                comparacoes = grupo_rel.get('comparacoes_api', [])
+                ocorrencias = grupo_rel.get('ocorrencias', [])
+
+                # Para cada comparação com a API
+                for comp in comparacoes:
+                    ocorrencia_num = comp.get('ocorrencia_comparada')
+                    sao_similares = comp.get('sao_similares')
+                    interpretacao = comp.get('interpretacao', '')
+
+                    # ✅ SÓ REMOVE SE:
+                    # 1. sao_similares == True OU
+                    # 2. interpretacao == "Textos idênticos"
+                    if sao_similares == True or interpretacao == "Textos idênticos":
+                        # Encontra o índice real da publicação
+                        if ocorrencia_num and ocorrencia_num <= len(ocorrencias):
+                            indice = ocorrencias[ocorrencia_num - 1]['indice']
+                            indices_remover.add(indice)
+                            print(f"   ✅ Processo {numero_processo}, ocorrência {ocorrencia_num}: DUPLICATA CONFIRMADA - será removida")
+                    else:
+                        print(f"   ❌ Processo {numero_processo}, ocorrência {ocorrencia_num}: NÃO é duplicata - será mantida")
+
+            print(f"\n{'='*80}")
+            print(f"📊 Total de publicações a remover: {len(indices_remover)}")
+            print(f"{'='*80}\n")
+        else:
+            # Modo antigo: remove todas as duplicatas (exceto a primeira de cada grupo)
+            print(f"\n⚠️  ATENÇÃO: Removendo duplicatas SEM verificação da API")
+            print(f"⚠️  Para usar verificação da API, forneça o relatório\n")
+            for _, grupo in self.duplicatas:
+                for item in grupo[1:]:
+                    indices_remover.add(item['indice'])
 
         result = self.root.find('.//{http://tempuri.org/}getPublicacoesResult')
         if result is None:
@@ -848,13 +892,24 @@ class PublicacaoProcessor:
         if not publicacoes_elements:
             publicacoes_elements = result.findall('publicacao')
 
+        # Remove publicações confirmadas como duplicatas
         for idx in sorted(indices_remover, reverse=True):
             if idx < len(publicacoes_elements):
                 result.remove(publicacoes_elements[idx])
 
         self.tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
-        return True, f"XML limpo gerado: {len(indices_remover)} duplicatas removidas"
+        # Mensagem detalhada
+        if relatorio:
+            total_analisadas = sum(len(g.get('comparacoes_api', [])) for g in relatorio.get('grupos', []))
+            mantidas = total_analisadas - len(indices_remover)
+            mensagem = (f"✅ XML limpo gerado!\n"
+                       f"📊 {len(indices_remover)} duplicatas removidas | "
+                       f"{mantidas} publicações mantidas (não duplicadas)")
+        else:
+            mensagem = f"XML limpo gerado: {len(indices_remover)} duplicatas removidas"
+
+        return True, mensagem
 
 
 @app.route('/')
@@ -1025,17 +1080,27 @@ def download():
 
     filename = session['current_file']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    session_id = session.get('session_id')
+
+    # Recupera o relatório com resultados da API
+    relatorio = None
+    if session_id and session_id in progresso_global:
+        relatorio = progresso_global[session_id].get('relatorio')
+
+    if not relatorio:
+        flash('⚠️ Relatório não encontrado. Processe o XML novamente.', 'warning')
+        return redirect(url_for('index'))
 
     processor = PublicacaoProcessor(filepath)
     processor.carregar_xml()
     processor.extrair_publicacoes()
     processor.identificar_duplicatas()
 
-    # Gera XML limpo
+    # Gera XML limpo COM VERIFICAÇÃO DA API
     output_filename = f"limpo_{filename}"
     output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
 
-    success, message = processor.remover_duplicatas(output_path)
+    success, message = processor.remover_duplicatas(output_path, relatorio=relatorio)
 
     if not success:
         flash(message, 'error')
