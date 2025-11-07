@@ -202,10 +202,10 @@
 
                 <div class="ocorrencias">
                     {% for ocorrencia in grupo.ocorrencias %}
-                    <div class="ocorrencia {% if ocorrencia.numero == 1 %}ocorrencia-manter{% else %}ocorrencia-remover{% endif %}">
+                    <div class="ocorrencia {% if not ocorrencia.sera_removida %}ocorrencia-manter{% else %}ocorrencia-remover{% endif %}">
                         <div class="ocorrencia-header">
                             <span class="ocorrencia-numero">Ocorrência {{ ocorrencia.numero }}</span>
-                            {% if ocorrencia.numero == 1 %}
+                            {% if not ocorrencia.sera_removida %}
                             <span class="badge badge-success">✓ Será mantida</span>
                             {% else %}
                             <span class="badge badge-danger">✗ Será removida</span>
@@ -267,7 +267,12 @@
         </div>
 
         <div class="recomendacao">
-            <strong>⚠️ Recomendação:</strong> O sistema manterá apenas a primeira ocorrência de cada grupo de duplicatas.
+            <strong>⚠️ Critério de Remoção:</strong> Uma publicação só será removida se a API confirmar que é duplicata:
+            <ul>
+                <li>✅ <code>sao_similares == true</code> OU</li>
+                <li>✅ <code>interpretacao == "Textos idênticos"</code></li>
+            </ul>
+            Publicações marcadas como diferentes pela API serão <strong>mantidas</strong> no XML limpo.
         </div>
 
         {% else %}

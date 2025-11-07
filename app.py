@@ -749,6 +749,50 @@ class PublicacaoProcessor:
                     # Remove lista temporária
                     del grupo_info['_tarefas']
 
+        # Quarto passo: Marcar quais ocorrências serão removidas baseado na API
+        print(f"\n{'='*80}")
+        print(f"📋 MARCANDO OCORRÊNCIAS PARA REMOÇÃO")
+        print(f"{'='*80}\n")
+
+        for grupo_info in relatorio['grupos']:
+            comparacoes = grupo_info.get('comparacoes_api', [])
+
+            # Cria um dicionário de comparações por número de ocorrência
+            comp_por_ocorrencia = {}
+            for comp in comparacoes:
+                ocorrencia_num = comp.get('ocorrencia_comparada')
+                if ocorrencia_num:
+                    comp_por_ocorrencia[ocorrencia_num] = comp
+
+            # Marca cada ocorrência
+            for ocorrencia in grupo_info['ocorrencias']:
+                num = ocorrencia['numero']
+
+                # Primeira ocorrência sempre mantida
+                if num == 1:
+                    ocorrencia['sera_removida'] = False
+                    continue
+
+                # Para outras ocorrências, verifica resultado da API
+                if num in comp_por_ocorrencia:
+                    comp = comp_por_ocorrencia[num]
+                    sao_similares = comp.get('sao_similares')
+                    interpretacao = comp.get('interpretacao', '')
+
+                    # ✅ Remove SE: sao_similares == True OU interpretacao == "Textos idênticos"
+                    if sao_similares == True or interpretacao == "Textos idênticos":
+                        ocorrencia['sera_removida'] = True
+                        print(f"   ✅ {grupo_info['numero_processo']}, ocorrência {num}: SERÁ REMOVIDA (sao_similares={sao_similares}, interpretacao='{interpretacao}')")
+                    else:
+                        ocorrencia['sera_removida'] = False
+                        print(f"   ❌ {grupo_info['numero_processo']}, ocorrência {num}: SERÁ MANTIDA (sao_similares={sao_similares}, interpretacao='{interpretacao}')")
+                else:
+                    # Sem comparação da API, assume que não remove
+                    ocorrencia['sera_removida'] = False
+                    print(f"   ⚠️  {grupo_info['numero_processo']}, ocorrência {num}: SERÁ MANTIDA (sem resultado da API)")
+
+        print(f"\n{'='*80}\n")
+
         # Resumo final
         tempo_total = time.time() - tempo_inicio
         if tempo_total < 60:
@@ -808,13 +852,32 @@ class PublicacaoProcessor:
         # Copia grupos e insere resultados disponíveis
         for grupo_info in relatorio_base['grupos']:
             grupo_copia = grupo_info.copy()
-            grupo_copia['ocorrencias'] = grupo_info['ocorrencias'].copy()
+            grupo_copia['ocorrencias'] = [occ.copy() for occ in grupo_info['ocorrencias']]
             grupo_copia['comparacoes_api'] = []
 
             if '_tarefas' in grupo_info:
                 for ocorrencia_num, tarefa_idx in grupo_info['_tarefas']:
                     if tarefa_idx in resultados:
                         grupo_copia['comparacoes_api'].append(resultados[tarefa_idx])
+
+            # Marca ocorrências para remoção no relatório parcial
+            comp_por_ocorrencia = {}
+            for comp in grupo_copia['comparacoes_api']:
+                ocorrencia_num = comp.get('ocorrencia_comparada')
+                if ocorrencia_num:
+                    comp_por_ocorrencia[ocorrencia_num] = comp
+
+            for ocorrencia in grupo_copia['ocorrencias']:
+                num = ocorrencia['numero']
+                if num == 1:
+                    ocorrencia['sera_removida'] = False
+                elif num in comp_por_ocorrencia:
+                    comp = comp_por_ocorrencia[num]
+                    sao_similares = comp.get('sao_similares')
+                    interpretacao = comp.get('interpretacao', '')
+                    ocorrencia['sera_removida'] = (sao_similares == True or interpretacao == "Textos idênticos")
+                else:
+                    ocorrencia['sera_removida'] = False
 
             relatorio_parcial['grupos'].append(grupo_copia)
 
