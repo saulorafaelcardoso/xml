@@ -220,6 +220,14 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
 
             if response.status_code == 200:
                 data = response.json()
+
+                # Log da resposta completa da API para debug
+                print(f"\n   📥 RESPOSTA DA API:")
+                print(f"   ├─ sao_similares: {data.get('sao_similares')}")
+                print(f"   ├─ interpretacao: {data.get('interpretacao', 'N/A')}")
+                print(f"   ├─ analise_juridica (primeiros 100 chars): {str(data.get('analise_juridica', 'N/A'))[:100]}...")
+                print(f"   └─ Outros campos: {[k for k in data.keys() if k not in ['sao_similares', 'interpretacao', 'analise_juridica']]}\n")
+
                 return {
                     'sucesso': True,
                     'analise_juridica': data.get('analise_juridica', 'N/A'),
