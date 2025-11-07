@@ -1441,18 +1441,57 @@ def download():
     processor.extrair_publicacoes()
     processor.identificar_duplicatas()
 
-    # Gera XML limpo SOAP COM VERIFICAÇÃO DA API
-    output_soap = f"limpo_soap_{filename}"
-    output_soap_path = os.path.join(app.config['UPLOAD_FOLDER'], output_soap)
+    # Detecta formato de entrada
+    formato_entrada = processor.formato_entrada
 
-    success, message = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
+    # CASO 1: Entrada E-mail → Saída E-mail (mantém formato)
+    if formato_entrada == 'email' and formato == 'email':
+        output_email = f"limpo_email_{filename}"
+        output_email_path = os.path.join(app.config['UPLOAD_FOLDER'], output_email)
 
-    if not success:
-        flash(message, 'error')
+        success, message = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+
+        if not success:
+            flash(message, 'error')
+            return redirect(url_for('relatorio'))
+
+        return send_file(output_email_path,
+                        as_attachment=True,
+                        download_name=f"email_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+
+    # CASO 2: Entrada E-mail → Saída SOAP (conversão não implementada)
+    elif formato_entrada == 'email' and formato == 'soap':
+        flash('⚠️ Conversão E-mail → SOAP ainda não implementada. Use formato E-mail na saída.', 'warning')
         return redirect(url_for('relatorio'))
 
-    # Se formato é EMAIL, converte SOAP para Email
-    if formato == 'email':
+    # CASO 3: Entrada SOAP → Saída SOAP (mantém formato)
+    elif formato_entrada == 'soap' and formato == 'soap':
+        output_soap = f"limpo_soap_{filename}"
+        output_soap_path = os.path.join(app.config['UPLOAD_FOLDER'], output_soap)
+
+        success, message = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
+
+        if not success:
+            flash(message, 'error')
+            return redirect(url_for('relatorio'))
+
+        return send_file(output_soap_path,
+                        as_attachment=True,
+                        download_name=f"soap_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+
+    # CASO 4: Entrada SOAP → Saída E-mail (converte)
+    elif formato_entrada == 'soap' and formato == 'email':
+        # Primeiro gera SOAP limpo
+        output_soap = f"limpo_soap_{filename}"
+        output_soap_path = os.path.join(app.config['UPLOAD_FOLDER'], output_soap)
+
+        success, message = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
+
+        if not success:
+            flash(message, 'error')
+            return redirect(url_for('relatorio'))
+
+        # Depois converte para E-mail
         output_email = f"limpo_email_{filename}"
         output_email_path = os.path.join(app.config['UPLOAD_FOLDER'], output_email)
 
@@ -1466,10 +1505,10 @@ def download():
                         as_attachment=True,
                         download_name=f"email_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
 
-    # Formato SOAP (padrão)
-    return send_file(output_soap_path,
-                    as_attachment=True,
-                    download_name=f"soap_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+    # Fallback
+    else:
+        flash(f'Formato não suportado: {formato_entrada} → {formato}', 'error')
+        return redirect(url_for('relatorio'))
 
 
 @app.route('/limpar')
