@@ -308,7 +308,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
 
 
 class PublicacaoProcessor:
-    """Classe para processar publicações SOAP XML"""
+    """Classe para processar publicações em XML (SOAP ou E-mail)"""
 
     def __init__(self, xml_path, session_id=None):
         self.xml_path = xml_path
@@ -317,9 +317,10 @@ class PublicacaoProcessor:
         self.publicacoes = []
         self.duplicatas = []
         self.session_id = session_id  # Para tracking de progresso
+        self.formato_entrada = None  # 'soap' ou 'email'
 
     def carregar_xml(self):
-        """Carrega o arquivo XML"""
+        """Carrega o arquivo XML e detecta o formato"""
         try:
             # Corrige encoding automaticamente antes de parsear
             print(f"📄 Processando arquivo: {os.path.basename(self.xml_path)}")
@@ -328,6 +329,11 @@ class PublicacaoProcessor:
             # Tenta carregar o XML
             self.tree = ET.parse(self.xml_path)
             self.root = self.tree.getroot()
+
+            # Detecta formato
+            self.formato_entrada = self._detectar_formato()
+            print(f"🔍 Formato detectado: {self.formato_entrada.upper()}")
+
             return True, "XML carregado com sucesso"
         except ET.ParseError as e:
             # Erro de parsing - tenta diagnosticar
@@ -385,11 +391,38 @@ class PublicacaoProcessor:
         except Exception as e:
             return False, f"Erro inesperado ao carregar XML: {str(e)}"
 
+    def _detectar_formato(self):
+        """
+        Detecta se o XML é formato SOAP ou E-mail
+        SOAP: tem getPublicacoesResult e namespace http://tempuri.org/
+        E-mail: tem <Arquivo><Publicacoes> simples
+        """
+        # Tenta encontrar elementos característicos de SOAP
+        soap_element = self.root.find('.//{http://tempuri.org/}getPublicacoesResult')
+        if soap_element is not None:
+            return 'soap'
+
+        # Verifica se é formato E-mail (Arquivo > Publicacoes)
+        if self.root.tag == 'Arquivo' or 'Arquivo' in self.root.tag:
+            publicacoes = self.root.findall('Publicacoes')
+            if publicacoes:
+                return 'email'
+
+        # Padrão: assume SOAP
+        return 'soap'
+
     def extrair_publicacoes(self):
-        """Extrai todas as publicações do XML"""
+        """Extrai todas as publicações do XML (SOAP ou E-mail)"""
+        if self.formato_entrada == 'email':
+            return self._extrair_publicacoes_email()
+        else:
+            return self._extrair_publicacoes_soap()
+
+    def _extrair_publicacoes_soap(self):
+        """Extrai publicações do formato SOAP"""
         publicacoes = []
 
-        # Busca por todas as publicações no XML
+        # Busca por todas as publicações no XML SOAP
         pubs = self.root.findall('.//{http://tempuri.org/}publicacao')
         if not pubs:
             pubs = self.root.findall('.//publicacao')
@@ -404,6 +437,49 @@ class PublicacaoProcessor:
             publicacoes.append(dados)
 
         self.publicacoes = publicacoes
+        return publicacoes
+
+    def _extrair_publicacoes_email(self):
+        """Extrai publicações do formato E-mail"""
+        publicacoes = []
+
+        # Busca por todos os elementos <Publicacoes>
+        pubs_elements = self.root.findall('Publicacoes')
+
+        print(f"📧 Encontrados {len(pubs_elements)} elementos <Publicacoes>")
+
+        for idx, pub_elem in enumerate(pubs_elements):
+            dados = {}
+
+            # Extrai campos simples
+            for campo in ['Data', 'Processo', 'Diario']:
+                elem = pub_elem.find(campo)
+                if elem is not None:
+                    dados[campo.lower()] = elem.text if elem.text else ''
+
+            # Mapeia para nomes usados no SOAP
+            dados['numeroProcesso'] = dados.get('processo', '')
+            dados['dataPublicacao'] = dados.get('data', '')
+            dados['descricaoDiario'] = dados.get('diario', '')
+
+            # Extrai Identificacao (pode ter CDATA)
+            identificacao_elem = pub_elem.find('Identificacao')
+            if identificacao_elem is not None:
+                dados['identificacao'] = identificacao_elem.text if identificacao_elem.text else ''
+
+            # Extrai Publicacao (texto principal, pode ter CDATA)
+            publicacao_elem = pub_elem.find('Publicacao')
+            if publicacao_elem is not None:
+                dados['processoPublicacao'] = publicacao_elem.text if publicacao_elem.text else ''
+
+            # Armazena elemento original
+            dados['_element'] = pub_elem
+            dados['_indice_original'] = idx
+
+            publicacoes.append(dados)
+
+        self.publicacoes = publicacoes
+        print(f"✅ {len(publicacoes)} publicações extraídas do formato E-mail")
         return publicacoes
 
     def identificar_duplicatas(self):
@@ -893,7 +969,7 @@ class PublicacaoProcessor:
 
     def remover_duplicatas(self, output_path, relatorio=None):
         """
-        Remove duplicatas e gera novo XML
+        Remove duplicatas e gera novo XML (SOAP ou E-mail)
 
         Args:
             output_path: Caminho do arquivo de saída
@@ -905,6 +981,14 @@ class PublicacaoProcessor:
             shutil.copy(self.xml_path, output_path)
             return True, "Nenhuma duplicata encontrada, arquivo copiado"
 
+        # Direciona para o método apropriado conforme o formato
+        if self.formato_entrada == 'email':
+            return self._remover_duplicatas_email(output_path, relatorio)
+        else:
+            return self._remover_duplicatas_soap(output_path, relatorio)
+
+    def _remover_duplicatas_soap(self, output_path, relatorio=None):
+        """Remove duplicatas do formato SOAP"""
         indices_remover = set()
 
         # Se temos relatório com resultados da API, usa-o para decidir o que remover
@@ -979,6 +1063,85 @@ class PublicacaoProcessor:
                        f"{mantidas} publicações mantidas (não duplicadas)")
         else:
             mensagem = f"XML limpo gerado: {len(indices_remover)} duplicatas removidas"
+
+        return True, mensagem
+
+    def _remover_duplicatas_email(self, output_path, relatorio=None):
+        """Remove duplicatas do formato E-mail"""
+        indices_remover = set()
+
+        # Se temos relatório com resultados da API, usa-o para decidir o que remover
+        if relatorio and 'grupos' in relatorio:
+            print(f"\n{'='*80}")
+            print(f"🔍 VERIFICANDO DUPLICATAS COM RESULTADOS DA API (Formato E-mail)")
+            print(f"{'='*80}\n")
+
+            for grupo_rel in relatorio['grupos']:
+                numero_processo = grupo_rel.get('numero_processo', '')
+                comparacoes = grupo_rel.get('comparacoes_api', [])
+                ocorrencias = grupo_rel.get('ocorrencias', [])
+
+                # Para cada comparação com a API
+                for comp in comparacoes:
+                    ocorrencia_num = comp.get('ocorrencia_comparada')
+                    sao_similares = comp.get('sao_similares')
+                    interpretacao = comp.get('interpretacao', '')
+
+                    # ✅ SÓ REMOVE SE:
+                    # 1. sao_similares == True OU
+                    # 2. interpretacao == "Textos idênticos"
+                    if sao_similares == True or interpretacao == "Textos idênticos":
+                        # Encontra o índice real da publicação
+                        if ocorrencia_num and ocorrencia_num <= len(ocorrencias):
+                            indice = ocorrencias[ocorrencia_num - 1]['indice']
+                            indices_remover.add(indice)
+                            print(f"   ✅ Processo {numero_processo}, ocorrência {ocorrencia_num}: DUPLICATA CONFIRMADA - será removida")
+                    else:
+                        print(f"   ❌ Processo {numero_processo}, ocorrência {ocorrencia_num}: NÃO é duplicata - será mantida")
+
+            print(f"\n{'='*80}")
+            print(f"📊 Total de publicações a remover: {len(indices_remover)}")
+            print(f"{'='*80}\n")
+        else:
+            # Modo antigo: remove todas as duplicatas (exceto a primeira de cada grupo)
+            print(f"\n⚠️  ATENÇÃO: Removendo duplicatas SEM verificação da API")
+            print(f"⚠️  Para usar verificação da API, forneça o relatório\n")
+            for _, grupo in self.duplicatas:
+                for item in grupo[1:]:
+                    indices_remover.add(item['indice'])
+
+        # Busca todos os elementos <Publicacoes> no formato E-mail
+        publicacoes_elements = self.root.findall('Publicacoes')
+
+        if not publicacoes_elements:
+            return False, "Erro: Não foi possível encontrar elementos <Publicacoes>"
+
+        print(f"🗑️ Removendo {len(indices_remover)} de {len(publicacoes_elements)} publicações")
+
+        # Remove publicações confirmadas como duplicatas (de trás para frente para não afetar índices)
+        for idx in sorted(indices_remover, reverse=True):
+            if idx < len(publicacoes_elements):
+                self.root.remove(publicacoes_elements[idx])
+
+        # Atualiza contador total se existir
+        total_elem = self.root.find('Total_de_Publicacoes/Total')
+        if total_elem is not None:
+            novo_total = len(publicacoes_elements) - len(indices_remover)
+            total_elem.text = str(novo_total)
+            print(f"📊 Contador atualizado: {novo_total} publicações")
+
+        # Salva o XML com encoding ISO-8859-1 (padrão do formato E-mail)
+        self.tree.write(output_path, encoding='ISO-8859-1', xml_declaration=True)
+
+        # Mensagem detalhada
+        if relatorio:
+            total_analisadas = sum(len(g.get('comparacoes_api', [])) for g in relatorio.get('grupos', []))
+            mantidas = total_analisadas - len(indices_remover)
+            mensagem = (f"✅ XML E-mail limpo gerado!\n"
+                       f"📊 {len(indices_remover)} duplicatas removidas | "
+                       f"{mantidas} publicações mantidas (não duplicadas)")
+        else:
+            mensagem = f"XML E-mail limpo gerado: {len(indices_remover)} duplicatas removidas"
 
         return True, mensagem
 
