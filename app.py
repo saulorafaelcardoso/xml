@@ -982,6 +982,108 @@ class PublicacaoProcessor:
 
         return True, mensagem
 
+    def converter_para_email(self, soap_path, email_path):
+        """
+        Converte XML SOAP para formato Email simplificado
+
+        Estrutura Email:
+        <Arquivo>
+          <Publicacoes>
+            <Data>...</Data>
+            <Processo>...</Processo>
+            <Diario>...</Diario>
+            <Identificacao><![CDATA[...]]></Identificacao>
+            <Publicacao><![CDATA[...]]></Publicacao>
+          </Publicacoes>
+        </Arquivo>
+        """
+        print(f"\n{'='*80}")
+        print(f"🔄 CONVERTENDO SOAP PARA FORMATO EMAIL")
+        print(f"{'='*80}\n")
+
+        # Carrega o XML SOAP limpo
+        tree = ET.parse(soap_path)
+        root = tree.getroot()
+
+        # Encontra todas as publicações no SOAP
+        result = root.find('.//{http://tempuri.org/}getPublicacoesResult')
+        if result is None:
+            result = root.find('.//getPublicacoesResult')
+        if result is None:
+            for elem in root.iter():
+                if 'getPublicacoesResult' in elem.tag:
+                    result = elem
+                    break
+
+        if result is None:
+            return False, "Erro: Não foi possível encontrar getPublicacoesResult no SOAP"
+
+        publicacoes_soap = result.findall('{http://tempuri.org/}publicacao')
+        if not publicacoes_soap:
+            publicacoes_soap = result.findall('publicacao')
+
+        print(f"   📊 Total de publicações a converter: {len(publicacoes_soap)}\n")
+
+        # Cria novo XML Email
+        arquivo = ET.Element('Arquivo')
+        arquivo.set('xmlns', 'Arquivo')
+
+        for idx, pub_soap in enumerate(publicacoes_soap, 1):
+            # Extrai dados da publicação SOAP
+            def get_text(tag_name):
+                elem = pub_soap.find(f'{{http://tempuri.org/}}{tag_name}')
+                if elem is None:
+                    elem = pub_soap.find(tag_name)
+                return elem.text if elem is not None and elem.text else ''
+
+            numero_processo = get_text('numeroProcesso')
+            data_publicacao = get_text('dataPublicacao')
+            descricao_diario = get_text('descricaoDiario')
+            data_divulgacao = get_text('dataDivulgacao')
+            orgao_descricao = get_text('orgaoDescricao')
+            processo_publicacao = get_text('processoPublicacao')
+
+            # Cria elemento <Publicacoes>
+            publicacoes = ET.SubElement(arquivo, 'Publicacoes')
+
+            # <Data>
+            data_elem = ET.SubElement(publicacoes, 'Data')
+            data_elem.text = data_publicacao or data_divulgacao or ''
+
+            # <Processo>
+            processo_elem = ET.SubElement(publicacoes, 'Processo')
+            processo_elem.text = numero_processo
+
+            # <Diario>
+            diario_elem = ET.SubElement(publicacoes, 'Diario')
+            diario_elem.text = descricao_diario
+
+            # <Identificacao>
+            identificacao_elem = ET.SubElement(publicacoes, 'Identificacao')
+            identificacao_text = f"""
+      Data Disponibilização: {data_divulgacao}
+      Data Publicação: {data_publicacao}
+      Órgão: {orgao_descricao}
+        """
+            identificacao_elem.text = identificacao_text.strip()
+
+            # <Publicacao>
+            publicacao_elem = ET.SubElement(publicacoes, 'Publicacao')
+            publicacao_elem.text = processo_publicacao
+
+            if idx % 10 == 0:
+                print(f"   ✅ Convertidas: {idx}/{len(publicacoes_soap)}")
+
+        # Salva o XML Email
+        email_tree = ET.ElementTree(arquivo)
+        ET.indent(email_tree, space="  ")
+        email_tree.write(email_path, encoding='ISO-8859-1', xml_declaration=True)
+
+        print(f"\n   ✅ Conversão concluída: {len(publicacoes_soap)} publicações")
+        print(f"{'='*80}\n")
+
+        return True, f"XML Email gerado: {len(publicacoes_soap)} publicações convertidas"
+
 
 @app.route('/')
 def index():
@@ -1144,10 +1246,13 @@ def relatorio():
 
 @app.route('/download')
 def download():
-    """Gera e envia XML sem duplicatas"""
+    """Gera e envia XML sem duplicatas (SOAP ou formato Email)"""
     if 'current_file' not in session:
         flash('Nenhum arquivo processado', 'error')
         return redirect(url_for('index'))
+
+    # Pega formato escolhido (padrão: soap)
+    formato = request.args.get('formato', 'soap')
 
     filename = session['current_file']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -1167,19 +1272,35 @@ def download():
     processor.extrair_publicacoes()
     processor.identificar_duplicatas()
 
-    # Gera XML limpo COM VERIFICAÇÃO DA API
-    output_filename = f"limpo_{filename}"
-    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+    # Gera XML limpo SOAP COM VERIFICAÇÃO DA API
+    output_soap = f"limpo_soap_{filename}"
+    output_soap_path = os.path.join(app.config['UPLOAD_FOLDER'], output_soap)
 
-    success, message = processor.remover_duplicatas(output_path, relatorio=relatorio)
+    success, message = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
 
     if not success:
         flash(message, 'error')
         return redirect(url_for('relatorio'))
 
-    return send_file(output_path,
+    # Se formato é EMAIL, converte SOAP para Email
+    if formato == 'email':
+        output_email = f"limpo_email_{filename}"
+        output_email_path = os.path.join(app.config['UPLOAD_FOLDER'], output_email)
+
+        success_conv, message_conv = processor.converter_para_email(output_soap_path, output_email_path)
+
+        if not success_conv:
+            flash(message_conv, 'error')
+            return redirect(url_for('relatorio'))
+
+        return send_file(output_email_path,
+                        as_attachment=True,
+                        download_name=f"email_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+
+    # Formato SOAP (padrão)
+    return send_file(output_soap_path,
                     as_attachment=True,
-                    download_name=f"sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+                    download_name=f"soap_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
 
 
 @app.route('/limpar')

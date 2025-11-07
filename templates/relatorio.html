@@ -47,9 +47,16 @@
             <span>⬅️</span> Novo Arquivo
         </a>
         {% if tem_duplicatas %}
-        <a href="{{ url_for('download') }}" class="btn btn-success">
-            <span>💾</span> Baixar XML Sem Duplicatas
-        </a>
+        <div style="display: inline-block; margin: 0 5px;">
+            <a href="{{ url_for('download', formato='soap') }}" class="btn btn-success">
+                <span>💾</span> Baixar XML SOAP (Sem Duplicatas)
+            </a>
+        </div>
+        <div style="display: inline-block; margin: 0 5px;">
+            <a href="{{ url_for('download', formato='email') }}" class="btn btn-primary">
+                <span>✉️</span> Baixar XML E-mail (Sem Duplicatas)
+            </a>
+        </div>
         {% endif %}
         <a href="{{ url_for('limpar') }}" class="btn btn-danger">
             <span>🗑️</span> Limpar
