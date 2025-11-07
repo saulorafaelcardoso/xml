@@ -1182,6 +1182,11 @@ def upload_file():
         session['session_id'] = session_id
         session['current_file'] = filename
 
+        # Captura formato escolhido (padrão: soap)
+        formato_escolhido = request.form.get('formato', 'soap')
+        session['formato_saida'] = formato_escolhido
+        print(f"\n📋 Formato de saída escolhido: {formato_escolhido.upper()}\n")
+
         # Inicia processamento em background
         thread = threading.Thread(target=processar_xml_background, args=(filepath, session_id))
         thread.daemon = True
@@ -1251,8 +1256,9 @@ def download():
         flash('Nenhum arquivo processado', 'error')
         return redirect(url_for('index'))
 
-    # Pega formato escolhido (padrão: soap)
-    formato = request.args.get('formato', 'soap')
+    # Pega formato: primeiro tenta da URL, depois da sessão, senão usa soap
+    formato = request.args.get('formato') or session.get('formato_saida', 'soap')
+    print(f"\n📥 Gerando download no formato: {formato.upper()}\n")
 
     filename = session['current_file']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
