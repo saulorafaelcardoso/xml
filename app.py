@@ -194,9 +194,23 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
             # Pequeno delay aleatório para evitar sobrecarga simultânea
             time.sleep(random.uniform(0.1, 0.5))
 
-            # Log ANTES da chamada
+            # Log ANTES da chamada com comando CURL completo
+            import json
             inicio_chamada = time.time()
+
+            # Monta comando curl para teste
+            payload_json = json.dumps(payload, ensure_ascii=False)
+            curl_command = f"""curl -X POST '{API_URL}' \\
+  -H 'Authorization: {TOKEN}' \\
+  -H 'Content-Type: application/json' \\
+  --max-time 50 \\
+  -d '{payload_json}'"""
+
             print(f"\n   📡 CHAMANDO API /duplicidades (timeout: 50s)...")
+            print(f"\n   🧪 TESTE MANUAL (copie e cole no terminal):")
+            print(f"   {'─'*70}")
+            print(f"   {curl_command.replace(chr(10), chr(10) + '   ')}")
+            print(f"   {'─'*70}\n")
 
             response = requests.post(API_URL, headers=headers, json=payload, timeout=50)
 
