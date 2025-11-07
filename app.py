@@ -444,18 +444,32 @@ class PublicacaoProcessor:
         publicacoes = []
 
         # Busca por todos os elementos <Publicacoes>
-        pubs_elements = self.root.findall('Publicacoes')
+        # Tenta com namespace primeiro
+        pubs_elements = self.root.findall('{Arquivo}Publicacoes')
+
+        # Se não encontrou, tenta sem namespace
+        if not pubs_elements:
+            pubs_elements = self.root.findall('Publicacoes')
+
+        # Se ainda não encontrou, tenta buscar em qualquer namespace
+        if not pubs_elements:
+            # Busca por qualquer elemento que termine com Publicacoes
+            for elem in self.root:
+                if 'Publicacoes' in elem.tag:
+                    pubs_elements.append(elem)
 
         print(f"📧 Encontrados {len(pubs_elements)} elementos <Publicacoes>")
 
         for idx, pub_elem in enumerate(pubs_elements):
             dados = {}
 
-            # Extrai campos simples
+            # Extrai campos simples - tenta com e sem namespace
             for campo in ['Data', 'Processo', 'Diario']:
                 elem = pub_elem.find(campo)
+                if elem is None:
+                    elem = pub_elem.find(f'{{Arquivo}}{campo}')
                 if elem is not None:
-                    dados[campo.lower()] = elem.text if elem.text else ''
+                    dados[campo.lower()] = elem.text.strip() if elem.text else ''
 
             # Mapeia para nomes usados no SOAP
             dados['numeroProcesso'] = dados.get('processo', '')
@@ -464,17 +478,24 @@ class PublicacaoProcessor:
 
             # Extrai Identificacao (pode ter CDATA)
             identificacao_elem = pub_elem.find('Identificacao')
+            if identificacao_elem is None:
+                identificacao_elem = pub_elem.find('{Arquivo}Identificacao')
             if identificacao_elem is not None:
-                dados['identificacao'] = identificacao_elem.text if identificacao_elem.text else ''
+                dados['identificacao'] = identificacao_elem.text.strip() if identificacao_elem.text else ''
 
             # Extrai Publicacao (texto principal, pode ter CDATA)
             publicacao_elem = pub_elem.find('Publicacao')
+            if publicacao_elem is None:
+                publicacao_elem = pub_elem.find('{Arquivo}Publicacao')
             if publicacao_elem is not None:
-                dados['processoPublicacao'] = publicacao_elem.text if publicacao_elem.text else ''
+                dados['processoPublicacao'] = publicacao_elem.text.strip() if publicacao_elem.text else ''
 
             # Armazena elemento original
             dados['_element'] = pub_elem
             dados['_indice_original'] = idx
+
+            # Debug: mostra o que foi extraído
+            print(f"  📋 Publicação {idx+1}: Processo={dados.get('numeroProcesso', 'N/A')}, Data={dados.get('dataPublicacao', 'N/A')}")
 
             publicacoes.append(dados)
 
