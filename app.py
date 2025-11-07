@@ -166,7 +166,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
     import time
     import random
 
-    API_URL = 'http://extracao-rtx.corejur.com.br:5000/duplicidades'
+    API_URL = 'http://extracao-rtx.corejur.com.br:4000/duplicidades_llm'
     TOKEN = 'Bearer 2390*Corejur*)23dads'
 
     headers = {
@@ -206,7 +206,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
   --max-time 50 \\
   -d '{payload_json}'"""
 
-            print(f"\n   📡 CHAMANDO API /duplicidades (timeout: 50s)...")
+            print(f"\n   📡 CHAMANDO API /duplicidades_llm (timeout: 50s)...")
             print(f"\n   🧪 TESTE MANUAL (copie e cole no terminal):")
             print(f"   {'─'*70}")
             print(f"   {curl_command.replace(chr(10), chr(10) + '   ')}")
@@ -242,7 +242,7 @@ def comparar_textos_api(texto1, texto2, max_tentativas=2):
             print(f"   ⚠️  TIMEOUT NA API! (tentativa {tentativa}/{max_tentativas})")
             print(f"   {'─'*70}")
             print(f"   ⏱️  Tempo decorrido: {tempo_decorrido:.1f}s (limite: 50s)")
-            print(f"   📡 Endpoint: /duplicidades")
+            print(f"   📡 Endpoint: /duplicidades_llm")
             if tentativa < max_tentativas:
                 print(f"   🔄 Tentando novamente...")
                 print(f"   {'─'*70}\n")
