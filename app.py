@@ -1093,10 +1093,17 @@ class PublicacaoProcessor:
 
     def _remover_duplicatas_email(self, output_path, relatorio=None):
         """Remove duplicatas do formato E-mail"""
+        print(f"\n{'='*80}")
+        print(f"📧 _remover_duplicatas_email INICIADO")
+        print(f"{'='*80}")
+        print(f"   📂 Output path: {output_path}")
+        print(f"   📊 Relatório fornecido: {relatorio is not None}")
+
         indices_remover = set()
 
         # Se temos relatório com resultados da API, usa-o para decidir o que remover
         if relatorio and 'grupos' in relatorio:
+            print(f"   ✅ Usando relatório da API para decisão de remoção")
             print(f"\n{'='*80}")
             print(f"🔍 VERIFICANDO DUPLICATAS COM RESULTADOS DA API (Formato E-mail)")
             print(f"{'='*80}\n")
@@ -1136,23 +1143,37 @@ class PublicacaoProcessor:
                     indices_remover.add(item['indice'])
 
         # Busca todos os elementos <Publicacoes> no formato E-mail
+        print(f"\n🔍 Buscando elementos <Publicacoes>...")
+        print(f"   Root tag: {self.root.tag}")
+
         # Tenta com namespace primeiro
+        print(f"   1. Tentando findall('{{Arquivo}}Publicacoes')...")
         publicacoes_elements = self.root.findall('{Arquivo}Publicacoes')
+        print(f"      Encontrados: {len(publicacoes_elements)}")
 
         # Se não encontrou, tenta sem namespace
         if not publicacoes_elements:
+            print(f"   2. Tentando findall('Publicacoes')...")
             publicacoes_elements = self.root.findall('Publicacoes')
+            print(f"      Encontrados: {len(publicacoes_elements)}")
 
         # Se ainda não encontrou, itera pelos filhos diretos
         if not publicacoes_elements:
+            print(f"   3. Iterando filhos diretos do root...")
             publicacoes_elements = []
             for elem in self.root:
                 tag_name = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                print(f"      - Filho: {elem.tag} (nome: {tag_name})")
                 if tag_name == 'Publicacoes':
                     publicacoes_elements.append(elem)
+                    print(f"        ✅ Match!")
+            print(f"      Total encontrados: {len(publicacoes_elements)}")
 
         if not publicacoes_elements:
+            print(f"   ❌ ERRO: Nenhum elemento Publicacoes encontrado!")
             return False, "Erro: Não foi possível encontrar elementos <Publicacoes>"
+
+        print(f"   ✅ Total de {len(publicacoes_elements)} elementos <Publicacoes> encontrados")
 
         print(f"🗑️ Removendo {len(indices_remover)} de {len(publicacoes_elements)} publicações")
 
@@ -1456,46 +1477,81 @@ def relatorio():
 @app.route('/download')
 def download():
     """Gera e envia XML sem duplicatas (SOAP ou formato Email)"""
+    print("\n" + "="*80)
+    print("🔽 INICIANDO DOWNLOAD")
+    print("="*80)
+
+    # Verificação 1: Arquivo na sessão
+    print(f"1️⃣ Verificando sessão...")
     if 'current_file' not in session:
+        print(f"   ❌ ERRO: Nenhum arquivo na sessão")
         flash('Nenhum arquivo processado', 'error')
         return redirect(url_for('index'))
+    print(f"   ✅ Arquivo na sessão: {session.get('current_file')}")
 
     # Pega formato: primeiro tenta da URL, depois da sessão, senão usa soap
     formato = request.args.get('formato') or session.get('formato_saida', 'soap')
-    print(f"\n📥 Gerando download no formato: {formato.upper()}\n")
+    print(f"\n2️⃣ Formato solicitado: {formato.upper()}")
 
     filename = session['current_file']
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     session_id = session.get('session_id')
 
-    # Recupera o relatório com resultados da API
+    print(f"   📁 Arquivo: {filename}")
+    print(f"   📂 Caminho: {filepath}")
+    print(f"   🆔 Session ID: {session_id}")
+
+    # Verificação 2: Recupera o relatório com resultados da API
+    print(f"\n3️⃣ Recuperando relatório da API...")
     relatorio = None
     if session_id and session_id in progresso_global:
         relatorio = progresso_global[session_id].get('relatorio')
+        print(f"   ✅ Relatório encontrado em progresso_global")
+        if relatorio and 'grupos' in relatorio:
+            print(f"   📊 {len(relatorio['grupos'])} grupos de duplicatas no relatório")
+    else:
+        print(f"   ⚠️  session_id={session_id}, em progresso_global={session_id in progresso_global if session_id else False}")
 
     if not relatorio:
+        print(f"   ❌ ERRO: Relatório não encontrado - redirecionando para index")
         flash('⚠️ Relatório não encontrado. Processe o XML novamente.', 'warning')
         return redirect(url_for('index'))
 
+    # Verificação 3: Carrega e processa XML
+    print(f"\n4️⃣ Carregando XML...")
     processor = PublicacaoProcessor(filepath)
-    processor.carregar_xml()
-    processor.extrair_publicacoes()
+    success, msg = processor.carregar_xml()
+    print(f"   Carregamento: {success} - {msg}")
+
+    print(f"\n5️⃣ Extraindo publicações...")
+    pubs = processor.extrair_publicacoes()
+    print(f"   {len(pubs)} publicações extraídas")
+
+    print(f"\n6️⃣ Identificando duplicatas...")
     processor.identificar_duplicatas()
+    print(f"   {len(processor.duplicatas)} grupos de duplicatas identificados")
 
     # Detecta formato de entrada
     formato_entrada = processor.formato_entrada
+    print(f"\n7️⃣ Formatos: entrada={formato_entrada.upper()}, saída={formato.upper()}")
 
     # CASO 1: Entrada E-mail → Saída E-mail (mantém formato)
     if formato_entrada == 'email' and formato == 'email':
+        print(f"\n8️⃣ 📧 CASO 1: E-mail → E-mail")
         output_email = f"limpo_email_{filename}"
         output_email_path = os.path.join(app.config['UPLOAD_FOLDER'], output_email)
+        print(f"   📁 Arquivo de saída: {output_email_path}")
 
+        print(f"\n9️⃣ Removendo duplicatas...")
         success, message = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+        print(f"   Resultado: {success} - {message}")
 
         if not success:
+            print(f"   ❌ ERRO na remoção: {message}")
             flash(message, 'error')
             return redirect(url_for('relatorio'))
 
+        print(f"\n🔟 ✅ Enviando arquivo para download...")
         return send_file(output_email_path,
                         as_attachment=True,
                         download_name=f"email_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
