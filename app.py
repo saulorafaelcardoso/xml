@@ -1481,17 +1481,18 @@ def relatorio():
 @app.route('/download')
 def download():
     """Gera e envia XML sem duplicatas (SOAP ou formato Email)"""
-    print("\n" + "="*80)
-    print("🔽 INICIANDO DOWNLOAD")
-    print("="*80)
+    print("\n" + "="*80, flush=True)
+    print("🔽 INICIANDO DOWNLOAD", flush=True)
+    print("="*80, flush=True)
+    print(f"DEBUG: Função download() foi chamada! Session keys: {list(session.keys())}", flush=True)
 
     # Verificação 1: Arquivo na sessão
-    print(f"1️⃣ Verificando sessão...")
+    print(f"1️⃣ Verificando sessão...", flush=True)
     if 'current_file' not in session:
-        print(f"   ❌ ERRO: Nenhum arquivo na sessão")
+        print(f"   ❌ ERRO: Nenhum arquivo na sessão", flush=True)
         flash('Nenhum arquivo processado', 'error')
         return redirect(url_for('index'))
-    print(f"   ✅ Arquivo na sessão: {session.get('current_file')}")
+    print(f"   ✅ Arquivo na sessão: {session.get('current_file')}", flush=True)
 
     # Pega formato: primeiro tenta da URL, depois da sessão, senão usa soap
     formato = request.args.get('formato') or session.get('formato_saida', 'soap')
