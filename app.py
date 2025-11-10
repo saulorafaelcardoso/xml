@@ -1359,11 +1359,48 @@ def processar_xml_background(filepath, session_id):
         progresso = obter_progresso(session_id)
         foi_cancelado = progresso and progresso.get('cancelado', False)
 
+        # ✅ GERA ARQUIVOS XML LIMPOS (SOAP e E-mail) DURANTE O PROCESSAMENTO
+        print(f"\n{'='*80}")
+        print(f"📝 GERANDO ARQUIVOS XML LIMPOS")
+        print(f"{'='*80}")
+
+        # Gera nome base do arquivo limpo
+        base_filename = os.path.basename(filepath)
+        upload_folder = os.path.dirname(filepath)
+
+        # Gera arquivo SOAP limpo
+        output_soap = f"limpo_soap_{base_filename}"
+        output_soap_path = os.path.join(upload_folder, output_soap)
+        print(f"🔹 Gerando SOAP limpo: {output_soap}")
+
+        success_soap, msg_soap = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
+        if success_soap:
+            print(f"   ✅ SOAP gerado: {output_soap_path}")
+        else:
+            print(f"   ❌ Erro SOAP: {msg_soap}")
+
+        # Gera arquivo E-mail limpo
+        output_email = f"limpo_email_{base_filename}"
+        output_email_path = os.path.join(upload_folder, output_email)
+        print(f"🔹 Gerando E-mail limpo: {output_email}")
+
+        success_email, msg_email = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+        if success_email:
+            print(f"   ✅ E-mail gerado: {output_email_path}")
+        else:
+            print(f"   ❌ Erro E-mail: {msg_email}")
+
+        print(f"{'='*80}\n")
+
         # Salva resultado no progresso
         with progresso_lock:
             progresso_global[session_id]['relatorio'] = relatorio
             progresso_global[session_id]['total_duplicatas'] = len(processor.duplicatas)
             progresso_global[session_id]['concluido'] = True  # Marca como concluído mesmo se cancelado
+
+            # ✅ Salva caminhos dos arquivos limpos
+            progresso_global[session_id]['arquivo_soap_limpo'] = output_soap if success_soap else None
+            progresso_global[session_id]['arquivo_email_limpo'] = output_email if success_email else None
 
         if foi_cancelado:
             atualizar_progresso(session_id, '⚠️ Relatório parcial gerado!', 100, 100)
@@ -1467,7 +1504,11 @@ def relatorio():
         # O relatório é necessário para download posterior
         session['relatorio'] = relatorio
 
-    # Limpa progresso após exibir (mas relatório foi salvo na sessão)
+        # ✅ Salva caminhos dos arquivos limpos na sessão
+        session['arquivo_soap_limpo'] = progresso_global[session_id].get('arquivo_soap_limpo')
+        session['arquivo_email_limpo'] = progresso_global[session_id].get('arquivo_email_limpo')
+
+    # Limpa progresso após exibir (mas relatório e arquivos foram salvos na sessão)
     limpar_progresso(session_id)
 
     return render_template('relatorio.html',
@@ -1480,144 +1521,47 @@ def relatorio():
 
 @app.route('/download')
 def download():
-    """Gera e envia XML sem duplicatas (SOAP ou formato Email)"""
+    """Serve arquivo XML limpo já gerado durante o processamento"""
     print("\n" + "="*80, flush=True)
-    print("🔽 INICIANDO DOWNLOAD", flush=True)
+    print("🔽 DOWNLOAD DE ARQUIVO JÁ GERADO", flush=True)
     print("="*80, flush=True)
-    print(f"DEBUG: Função download() foi chamada! Session keys: {list(session.keys())}", flush=True)
 
     # Verificação 1: Arquivo na sessão
-    print(f"1️⃣ Verificando sessão...", flush=True)
     if 'current_file' not in session:
-        print(f"   ❌ ERRO: Nenhum arquivo na sessão", flush=True)
         flash('Nenhum arquivo processado', 'error')
         return redirect(url_for('index'))
-    print(f"   ✅ Arquivo na sessão: {session.get('current_file')}", flush=True)
 
-    # Pega formato: primeiro tenta da URL, depois da sessão, senão usa soap
-    formato = request.args.get('formato') or session.get('formato_saida', 'soap')
-    print(f"\n2️⃣ Formato solicitado: {formato.upper()}")
+    # Pega formato solicitado
+    formato = request.args.get('formato', 'soap')
+    print(f"📥 Formato solicitado: {formato.upper()}", flush=True)
 
-    filename = session['current_file']
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    session_id = session.get('session_id')
-
-    print(f"   📁 Arquivo: {filename}")
-    print(f"   📂 Caminho: {filepath}")
-    print(f"   🆔 Session ID: {session_id}")
-
-    # Verificação 2: Recupera o relatório com resultados da API
-    print(f"\n3️⃣ Recuperando relatório da API...")
-
-    # Tenta buscar da sessão Flask (onde foi salvo na rota /relatorio)
-    relatorio = session.get('relatorio')
-
-    if relatorio:
-        print(f"   ✅ Relatório encontrado na sessão Flask")
-        if 'grupos' in relatorio:
-            print(f"   📊 {len(relatorio['grupos'])} grupos de duplicatas no relatório")
+    # Pega caminho do arquivo limpo da sessão
+    if formato == 'email':
+        arquivo_limpo = session.get('arquivo_email_limpo')
     else:
-        # Fallback: tenta buscar de progresso_global (se ainda existir)
-        if session_id and session_id in progresso_global:
-            relatorio = progresso_global[session_id].get('relatorio')
-            print(f"   ✅ Relatório encontrado em progresso_global (fallback)")
-        else:
-            print(f"   ⚠️  Relatório não encontrado nem na sessão nem em progresso_global")
+        arquivo_limpo = session.get('arquivo_soap_limpo')
 
-    if not relatorio:
-        print(f"   ❌ ERRO: Relatório não encontrado - redirecionando para index")
-        flash('⚠️ Relatório não encontrado. Processe o XML novamente.', 'warning')
+    print(f"📁 Arquivo limpo na sessão: {arquivo_limpo}", flush=True)
+
+    if not arquivo_limpo:
+        flash('❌ Arquivo limpo não encontrado. Processe o XML novamente.', 'error')
         return redirect(url_for('index'))
 
-    # Verificação 3: Carrega e processa XML
-    print(f"\n4️⃣ Carregando XML...")
-    processor = PublicacaoProcessor(filepath)
-    success, msg = processor.carregar_xml()
-    print(f"   Carregamento: {success} - {msg}")
+    # Monta caminho completo
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], arquivo_limpo)
+    print(f"📂 Caminho completo: {filepath}", flush=True)
 
-    print(f"\n5️⃣ Extraindo publicações...")
-    pubs = processor.extrair_publicacoes()
-    print(f"   {len(pubs)} publicações extraídas")
+    # Verifica se arquivo existe
+    if not os.path.exists(filepath):
+        print(f"❌ Arquivo não existe: {filepath}", flush=True)
+        flash('❌ Arquivo não encontrado no servidor. Processe o XML novamente.', 'error')
+        return redirect(url_for('index'))
 
-    print(f"\n6️⃣ Identificando duplicatas...")
-    processor.identificar_duplicatas()
-    print(f"   {len(processor.duplicatas)} grupos de duplicatas identificados")
-
-    # Detecta formato de entrada
-    formato_entrada = processor.formato_entrada
-    print(f"\n7️⃣ Formatos: entrada={formato_entrada.upper()}, saída={formato.upper()}")
-
-    # CASO 1: Entrada E-mail → Saída E-mail (mantém formato)
-    if formato_entrada == 'email' and formato == 'email':
-        print(f"\n8️⃣ 📧 CASO 1: E-mail → E-mail")
-        output_email = f"limpo_email_{filename}"
-        output_email_path = os.path.join(app.config['UPLOAD_FOLDER'], output_email)
-        print(f"   📁 Arquivo de saída: {output_email_path}")
-
-        print(f"\n9️⃣ Removendo duplicatas...")
-        success, message = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
-        print(f"   Resultado: {success} - {message}")
-
-        if not success:
-            print(f"   ❌ ERRO na remoção: {message}")
-            flash(message, 'error')
-            return redirect(url_for('relatorio'))
-
-        print(f"\n🔟 ✅ Enviando arquivo para download...")
-        return send_file(output_email_path,
-                        as_attachment=True,
-                        download_name=f"email_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
-
-    # CASO 2: Entrada E-mail → Saída SOAP (conversão não implementada)
-    elif formato_entrada == 'email' and formato == 'soap':
-        flash('⚠️ Conversão E-mail → SOAP ainda não implementada. Use formato E-mail na saída.', 'warning')
-        return redirect(url_for('relatorio'))
-
-    # CASO 3: Entrada SOAP → Saída SOAP (mantém formato)
-    elif formato_entrada == 'soap' and formato == 'soap':
-        output_soap = f"limpo_soap_{filename}"
-        output_soap_path = os.path.join(app.config['UPLOAD_FOLDER'], output_soap)
-
-        success, message = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
-
-        if not success:
-            flash(message, 'error')
-            return redirect(url_for('relatorio'))
-
-        return send_file(output_soap_path,
-                        as_attachment=True,
-                        download_name=f"soap_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
-
-    # CASO 4: Entrada SOAP → Saída E-mail (converte)
-    elif formato_entrada == 'soap' and formato == 'email':
-        # Primeiro gera SOAP limpo
-        output_soap = f"limpo_soap_{filename}"
-        output_soap_path = os.path.join(app.config['UPLOAD_FOLDER'], output_soap)
-
-        success, message = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
-
-        if not success:
-            flash(message, 'error')
-            return redirect(url_for('relatorio'))
-
-        # Depois converte para E-mail
-        output_email = f"limpo_email_{filename}"
-        output_email_path = os.path.join(app.config['UPLOAD_FOLDER'], output_email)
-
-        success_conv, message_conv = processor.converter_para_email(output_soap_path, output_email_path)
-
-        if not success_conv:
-            flash(message_conv, 'error')
-            return redirect(url_for('relatorio'))
-
-        return send_file(output_email_path,
-                        as_attachment=True,
-                        download_name=f"email_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
-
-    # Fallback
-    else:
-        flash(f'Formato não suportado: {formato_entrada} → {formato}', 'error')
-        return redirect(url_for('relatorio'))
+    # Serve o arquivo
+    print(f"✅ Enviando arquivo: {arquivo_limpo}", flush=True)
+    return send_file(filepath,
+                    as_attachment=True,
+                    download_name=f"{formato}_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
 
 
 @app.route('/limpar')
