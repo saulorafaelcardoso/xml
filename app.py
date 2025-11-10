@@ -1521,7 +1521,10 @@ def relatorio():
                          filename=filename,
                          tem_duplicatas=(relatorio is not None),
                          foi_cancelado=foi_cancelado,
-                         session_id=session_id)
+                         session_id=session_id,
+                         arquivo_soap_limpo=session.get('arquivo_soap_limpo'),
+                         arquivo_email_limpo=session.get('arquivo_email_limpo'),
+                         upload_folder=app.config['UPLOAD_FOLDER'])
 
 
 @app.route('/download')
@@ -1673,6 +1676,28 @@ def download():
     return send_file(filepath,
                     as_attachment=True,
                     download_name=f"{formato}_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+
+
+@app.route('/uploads/<filename>')
+def servir_arquivo_upload(filename):
+    """Serve arquivos da pasta uploads com caminho explícito na URL"""
+    print(f"\n{'='*80}", flush=True)
+    print(f"📂 SERVINDO ARQUIVO DA PASTA UPLOADS", flush=True)
+    print(f"{'='*80}", flush=True)
+    print(f"   Arquivo solicitado: {filename}", flush=True)
+    print(f"   Caminho completo: {os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], filename))}", flush=True)
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    if not os.path.exists(filepath):
+        print(f"   ❌ Arquivo não encontrado!", flush=True)
+        flash('Arquivo não encontrado', 'error')
+        return redirect(url_for('index'))
+
+    print(f"   ✅ Arquivo encontrado - enviando download", flush=True)
+    print(f"{'='*80}\n", flush=True)
+
+    return send_file(filepath, as_attachment=True)
 
 
 @app.route('/limpar')
