@@ -1379,12 +1379,17 @@ def processar_xml_background(filepath, session_id):
         else:
             print(f"   ❌ Erro SOAP: {msg_soap}")
 
-        # Gera arquivo E-mail limpo
+        # Gera arquivo E-mail limpo (converte do SOAP limpo)
         output_email = f"limpo_email_{base_filename}"
         output_email_path = os.path.join(upload_folder, output_email)
-        print(f"🔹 Gerando E-mail limpo: {output_email}")
+        print(f"🔹 Gerando E-mail limpo (convertendo de SOAP): {output_email}")
 
-        success_email, msg_email = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+        # Se entrada é SOAP, converte para E-mail; se entrada já é E-mail, usa remover_duplicatas direto
+        if processor.formato_entrada == 'soap':
+            success_email, msg_email = processor.converter_para_email(output_soap_path, output_email_path)
+        else:
+            success_email, msg_email = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+
         if success_email:
             print(f"   ✅ E-mail gerado: {output_email_path}")
         else:
