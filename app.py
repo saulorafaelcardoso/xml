@@ -1528,17 +1528,26 @@ def relatorio():
 def download():
     """Serve arquivo XML limpo já gerado durante o processamento"""
     print("\n" + "="*80, flush=True)
-    print("🔽 DOWNLOAD DE ARQUIVO JÁ GERADO", flush=True)
+    print("🔽 DOWNLOAD DE ARQUIVO SOLICITADO", flush=True)
     print("="*80, flush=True)
+
+    # DEBUG: Mostra conteúdo da sessão
+    print(f"📋 DEBUG - Conteúdo da sessão:", flush=True)
+    print(f"   current_file: {session.get('current_file', 'NÃO EXISTE')}", flush=True)
+    print(f"   session_id: {session.get('session_id', 'NÃO EXISTE')}", flush=True)
+    print(f"   arquivo_soap_limpo: {session.get('arquivo_soap_limpo', 'NÃO EXISTE')}", flush=True)
+    print(f"   arquivo_email_limpo: {session.get('arquivo_email_limpo', 'NÃO EXISTE')}", flush=True)
+    print(f"   relatorio exists: {session.get('relatorio') is not None}", flush=True)
 
     # Verificação 1: Arquivo na sessão
     if 'current_file' not in session:
+        print("❌ ERRO: current_file não está na sessão", flush=True)
         flash('Nenhum arquivo processado', 'error')
         return redirect(url_for('index'))
 
     # Pega formato solicitado
     formato = request.args.get('formato', 'soap')
-    print(f"📥 Formato solicitado: {formato.upper()}", flush=True)
+    print(f"\n📥 Formato solicitado: {formato.upper()}", flush=True)
 
     # Pega caminho do arquivo limpo da sessão
     if formato == 'email':
@@ -1546,24 +1555,121 @@ def download():
     else:
         arquivo_limpo = session.get('arquivo_soap_limpo')
 
-    print(f"📁 Arquivo limpo na sessão: {arquivo_limpo}", flush=True)
+    print(f"📁 Nome do arquivo na sessão: {arquivo_limpo}", flush=True)
 
+    # Se não tem o nome na sessão, tenta gerar sob demanda
     if not arquivo_limpo:
-        flash('❌ Arquivo limpo não encontrado. Processe o XML novamente.', 'error')
-        return redirect(url_for('index'))
+        print(f"⚠️ Arquivo {formato} não está na sessão. Tentando gerar sob demanda...", flush=True)
+
+        # Pega dados da sessão
+        relatorio = session.get('relatorio')
+        current_file = session.get('current_file')
+
+        if not relatorio or not current_file:
+            print("❌ ERRO: Sem relatório ou current_file. Não é possível gerar.", flush=True)
+            print(f"   📂 ENDEREÇO FÍSICO ESPERADO: {os.path.join(app.config['UPLOAD_FOLDER'], f'limpo_{formato}_{current_file}')}", flush=True)
+            flash(f'❌ Arquivo {formato} não foi gerado. Dados insuficientes na sessão.', 'error')
+            return redirect(url_for('relatorio'))
+
+        # Tenta reprocessar e gerar o arquivo
+        filepath_original = os.path.join(app.config['UPLOAD_FOLDER'], current_file)
+
+        if not os.path.exists(filepath_original):
+            print(f"❌ ERRO: Arquivo original não existe: {filepath_original}", flush=True)
+            flash(f'❌ Arquivo original não encontrado.', 'error')
+            return redirect(url_for('index'))
+
+        print(f"🔄 Gerando arquivo {formato} sob demanda...", flush=True)
+
+        # Carrega o processor novamente
+        processor = PublicacaoProcessor(filepath_original)
+        success, message = processor.carregar_xml()
+
+        if not success:
+            print(f"❌ ERRO ao carregar XML: {message}", flush=True)
+            flash(f'❌ Erro ao carregar XML: {message}', 'error')
+            return redirect(url_for('relatorio'))
+
+        processor.extrair_publicacoes()
+        processor.identificar_duplicatas()
+
+        # Gera arquivo limpo
+        base_filename = os.path.basename(filepath_original)
+        upload_folder = os.path.dirname(filepath_original)
+
+        if formato == 'soap':
+            output_soap = f"limpo_soap_{base_filename}"
+            output_path = os.path.join(upload_folder, output_soap)
+            success, msg = processor.remover_duplicatas(output_path, relatorio=relatorio)
+            arquivo_limpo = output_soap
+        else:  # email
+            # Primeiro gera SOAP limpo
+            output_soap = f"limpo_soap_{base_filename}"
+            output_soap_path = os.path.join(upload_folder, output_soap)
+
+            if not os.path.exists(output_soap_path):
+                print(f"   🔹 SOAP limpo não existe, gerando primeiro...", flush=True)
+                success_soap, _ = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
+                if not success_soap:
+                    print(f"   ❌ Falha ao gerar SOAP limpo", flush=True)
+                    flash('❌ Erro ao gerar arquivo SOAP intermediário', 'error')
+                    return redirect(url_for('relatorio'))
+
+            # Converte para E-mail
+            output_email = f"limpo_email_{base_filename}"
+            output_path = os.path.join(upload_folder, output_email)
+
+            if processor.formato_entrada == 'soap':
+                success, msg = processor.converter_para_email(output_soap_path, output_path)
+            else:
+                success, msg = processor.remover_duplicatas(output_path, relatorio=relatorio)
+
+            arquivo_limpo = output_email
+
+        if not success:
+            print(f"❌ ERRO ao gerar arquivo: {msg}", flush=True)
+            print(f"   📂 ENDEREÇO FÍSICO ESPERADO: {output_path}", flush=True)
+            flash(f'❌ Erro ao gerar arquivo: {msg}', 'error')
+            return redirect(url_for('relatorio'))
+
+        print(f"✅ Arquivo gerado com sucesso sob demanda!", flush=True)
+
+        # Atualiza sessão
+        if formato == 'email':
+            session['arquivo_email_limpo'] = arquivo_limpo
+        else:
+            session['arquivo_soap_limpo'] = arquivo_limpo
 
     # Monta caminho completo
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], arquivo_limpo)
-    print(f"📂 Caminho completo: {filepath}", flush=True)
+    print(f"📂 ENDEREÇO FÍSICO COMPLETO: {filepath}", flush=True)
+    print(f"   Diretório: {os.path.dirname(filepath)}", flush=True)
+    print(f"   Nome do arquivo: {os.path.basename(filepath)}", flush=True)
+    print(f"   Caminho absoluto: {os.path.abspath(filepath)}", flush=True)
 
     # Verifica se arquivo existe
     if not os.path.exists(filepath):
-        print(f"❌ Arquivo não existe: {filepath}", flush=True)
-        flash('❌ Arquivo não encontrado no servidor. Processe o XML novamente.', 'error')
-        return redirect(url_for('index'))
+        print(f"❌ ARQUIVO NÃO EXISTE FISICAMENTE: {os.path.abspath(filepath)}", flush=True)
+
+        # Lista arquivos no diretório para debug
+        upload_dir = app.config['UPLOAD_FOLDER']
+        if os.path.exists(upload_dir):
+            print(f"\n📁 Arquivos no diretório {upload_dir}:", flush=True)
+            for f in os.listdir(upload_dir):
+                full_path = os.path.join(upload_dir, f)
+                size = os.path.getsize(full_path)
+                print(f"   - {f} ({size} bytes)", flush=True)
+
+        flash(f'❌ Arquivo não encontrado fisicamente: {os.path.abspath(filepath)}', 'error')
+        return redirect(url_for('relatorio'))
 
     # Serve o arquivo
-    print(f"✅ Enviando arquivo: {arquivo_limpo}", flush=True)
+    file_size = os.path.getsize(filepath)
+    print(f"✅ ARQUIVO ENCONTRADO - ENVIANDO DOWNLOAD", flush=True)
+    print(f"   Tamanho: {file_size} bytes", flush=True)
+    print(f"   Path: {os.path.abspath(filepath)}", flush=True)
+    print(f"="*80 + "\n", flush=True)
+
     return send_file(filepath,
                     as_attachment=True,
                     download_name=f"{formato}_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
