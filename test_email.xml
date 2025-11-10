@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Arquivo xmlns="Arquivo">
+  <Publicacoes>
+    <Data>07/11/2025</Data>
+    <Processo>4001604-36.2025.8.26.0297</Processo>
+    <Diario>DJ São Paulo</Diario>
+    <Identificacao><![CDATA[
+      Data Disponibilização: 07/11/2025
+      Data Publicação: 10/11/2025
+      Página: 39393
+        ]]></Identificacao>
+    <Publicacao><![CDATA[
+      Lista de distribuição
+      PROCESSO: 4001604-36.2025.8.26.0297 - EXECUCAO DE TITULO EXTRAJUDICIAL
+    ]]></Publicacao>
+  </Publicacoes>
+
+  <Publicacoes>
+    <Data>07/11/2025</Data>
+    <Processo>4001604-36.2025.8.26.0297</Processo>
+    <Diario>DJ São Paulo</Diario>
+    <Identificacao><![CDATA[
+      Data Disponibilização: 07/11/2025
+        ]]></Identificacao>
+    <Publicacao><![CDATA[
+      Intimação
+      PROCESSO: 4001604-36.2025.8.26.0297
+    ]]></Publicacao>
+  </Publicacoes>
+
+  <Total_de_Publicacoes>
+    <Total>2</Total>
+  </Total_de_Publicacoes>
+</Arquivo>

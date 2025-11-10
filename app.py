@@ -404,8 +404,13 @@ class PublicacaoProcessor:
 
         # Verifica se é formato E-mail (Arquivo > Publicacoes)
         if self.root.tag == 'Arquivo' or 'Arquivo' in self.root.tag:
-            publicacoes = self.root.findall('Publicacoes')
+            # Tenta com namespace primeiro (xmlns="Arquivo")
+            publicacoes = self.root.findall('{Arquivo}Publicacoes')
+            if not publicacoes:
+                # Tenta sem namespace
+                publicacoes = self.root.findall('Publicacoes')
             if publicacoes:
+                print(f"   ✓ Detectado formato E-mail ({len(publicacoes)} elementos Publicacoes)")
                 return 'email'
 
         # Padrão: assume SOAP
@@ -451,11 +456,13 @@ class PublicacaoProcessor:
         if not pubs_elements:
             pubs_elements = self.root.findall('Publicacoes')
 
-        # Se ainda não encontrou, tenta buscar em qualquer namespace
+        # Se ainda não encontrou, itera pelos filhos diretos
         if not pubs_elements:
-            # Busca por qualquer elemento que termine com Publicacoes
+            pubs_elements = []
             for elem in self.root:
-                if 'Publicacoes' in elem.tag:
+                # Verifica se é exatamente 'Publicacoes', não 'Total_de_Publicacoes'
+                tag_name = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                if tag_name == 'Publicacoes':
                     pubs_elements.append(elem)
 
         print(f"📧 Encontrados {len(pubs_elements)} elementos <Publicacoes>")
@@ -463,32 +470,29 @@ class PublicacaoProcessor:
         for idx, pub_elem in enumerate(pubs_elements):
             dados = {}
 
-            # Extrai campos simples - tenta com e sem namespace
-            for campo in ['Data', 'Processo', 'Diario']:
-                elem = pub_elem.find(campo)
+            # Função helper para extrair texto de um elemento com namespace
+            def extrair_texto(parent, nome_campo):
+                # Tenta com namespace primeiro
+                elem = parent.find(f'{{Arquivo}}{nome_campo}')
                 if elem is None:
-                    elem = pub_elem.find(f'{{Arquivo}}{campo}')
-                if elem is not None:
-                    dados[campo.lower()] = elem.text.strip() if elem.text else ''
+                    # Tenta sem namespace
+                    elem = parent.find(nome_campo)
+                if elem is not None and elem.text:
+                    return elem.text.strip()
+                return ''
+
+            # Extrai campos simples
+            dados['data'] = extrair_texto(pub_elem, 'Data')
+            dados['processo'] = extrair_texto(pub_elem, 'Processo')
+            dados['diario'] = extrair_texto(pub_elem, 'Diario')
+            dados['identificacao'] = extrair_texto(pub_elem, 'Identificacao')
+            dados['publicacao'] = extrair_texto(pub_elem, 'Publicacao')
 
             # Mapeia para nomes usados no SOAP
-            dados['numeroProcesso'] = dados.get('processo', '')
-            dados['dataPublicacao'] = dados.get('data', '')
-            dados['descricaoDiario'] = dados.get('diario', '')
-
-            # Extrai Identificacao (pode ter CDATA)
-            identificacao_elem = pub_elem.find('Identificacao')
-            if identificacao_elem is None:
-                identificacao_elem = pub_elem.find('{Arquivo}Identificacao')
-            if identificacao_elem is not None:
-                dados['identificacao'] = identificacao_elem.text.strip() if identificacao_elem.text else ''
-
-            # Extrai Publicacao (texto principal, pode ter CDATA)
-            publicacao_elem = pub_elem.find('Publicacao')
-            if publicacao_elem is None:
-                publicacao_elem = pub_elem.find('{Arquivo}Publicacao')
-            if publicacao_elem is not None:
-                dados['processoPublicacao'] = publicacao_elem.text.strip() if publicacao_elem.text else ''
+            dados['numeroProcesso'] = dados['processo']
+            dados['dataPublicacao'] = dados['data']
+            dados['descricaoDiario'] = dados['diario']
+            dados['processoPublicacao'] = dados['publicacao']
 
             # Armazena elemento original
             dados['_element'] = pub_elem
