@@ -1136,7 +1136,20 @@ class PublicacaoProcessor:
                     indices_remover.add(item['indice'])
 
         # Busca todos os elementos <Publicacoes> no formato E-mail
-        publicacoes_elements = self.root.findall('Publicacoes')
+        # Tenta com namespace primeiro
+        publicacoes_elements = self.root.findall('{Arquivo}Publicacoes')
+
+        # Se não encontrou, tenta sem namespace
+        if not publicacoes_elements:
+            publicacoes_elements = self.root.findall('Publicacoes')
+
+        # Se ainda não encontrou, itera pelos filhos diretos
+        if not publicacoes_elements:
+            publicacoes_elements = []
+            for elem in self.root:
+                tag_name = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                if tag_name == 'Publicacoes':
+                    publicacoes_elements.append(elem)
 
         if not publicacoes_elements:
             return False, "Erro: Não foi possível encontrar elementos <Publicacoes>"
@@ -1148,8 +1161,11 @@ class PublicacaoProcessor:
             if idx < len(publicacoes_elements):
                 self.root.remove(publicacoes_elements[idx])
 
-        # Atualiza contador total se existir
-        total_elem = self.root.find('Total_de_Publicacoes/Total')
+        # Atualiza contador total se existir (tenta com e sem namespace)
+        total_elem = self.root.find('{Arquivo}Total_de_Publicacoes/{Arquivo}Total')
+        if total_elem is None:
+            total_elem = self.root.find('Total_de_Publicacoes/Total')
+
         if total_elem is not None:
             novo_total = len(publicacoes_elements) - len(indices_remover)
             total_elem.text = str(novo_total)
