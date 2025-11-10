@@ -1363,37 +1363,55 @@ def processar_xml_background(filepath, session_id):
         print(f"\n{'='*80}")
         print(f"📝 GERANDO ARQUIVOS XML LIMPOS")
         print(f"{'='*80}")
+        print(f"   Formato de entrada detectado: {processor.formato_entrada.upper()}")
 
         # Gera nome base do arquivo limpo
         base_filename = os.path.basename(filepath)
         upload_folder = os.path.dirname(filepath)
 
-        # Gera arquivo SOAP limpo
-        output_soap = f"limpo_soap_{base_filename}"
-        output_soap_path = os.path.join(upload_folder, output_soap)
-        print(f"🔹 Gerando SOAP limpo: {output_soap}")
+        # Variáveis para controlar sucesso
+        success_soap = False
+        success_email = False
+        output_soap = None
+        output_email = None
 
-        success_soap, msg_soap = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
-        if success_soap:
-            print(f"   ✅ SOAP gerado: {output_soap_path}")
-        else:
-            print(f"   ❌ Erro SOAP: {msg_soap}")
-
-        # Gera arquivo E-mail limpo (converte do SOAP limpo)
-        output_email = f"limpo_email_{base_filename}"
-        output_email_path = os.path.join(upload_folder, output_email)
-        print(f"🔹 Gerando E-mail limpo (convertendo de SOAP): {output_email}")
-
-        # Se entrada é SOAP, converte para E-mail; se entrada já é E-mail, usa remover_duplicatas direto
+        # Se entrada é SOAP: gera SOAP limpo e converte para E-mail
         if processor.formato_entrada == 'soap':
-            success_email, msg_email = processor.converter_para_email(output_soap_path, output_email_path)
-        else:
-            success_email, msg_email = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+            # Gera arquivo SOAP limpo
+            output_soap = f"limpo_soap_{base_filename}"
+            output_soap_path = os.path.join(upload_folder, output_soap)
+            print(f"🔹 Gerando SOAP limpo: {output_soap}")
 
-        if success_email:
-            print(f"   ✅ E-mail gerado: {output_email_path}")
+            success_soap, msg_soap = processor.remover_duplicatas(output_soap_path, relatorio=relatorio)
+            if success_soap:
+                print(f"   ✅ SOAP gerado: {output_soap_path}")
+            else:
+                print(f"   ❌ Erro SOAP: {msg_soap}")
+
+            # Converte SOAP limpo para E-mail
+            output_email = f"limpo_email_{base_filename}"
+            output_email_path = os.path.join(upload_folder, output_email)
+            print(f"🔹 Gerando E-mail limpo (convertendo de SOAP): {output_email}")
+
+            success_email, msg_email = processor.converter_para_email(output_soap_path, output_email_path)
+            if success_email:
+                print(f"   ✅ E-mail gerado: {output_email_path}")
+            else:
+                print(f"   ❌ Erro E-mail: {msg_email}")
+
+        # Se entrada é E-mail: gera apenas E-mail limpo
         else:
-            print(f"   ❌ Erro E-mail: {msg_email}")
+            output_email = f"limpo_email_{base_filename}"
+            output_email_path = os.path.join(upload_folder, output_email)
+            print(f"🔹 Gerando E-mail limpo: {output_email}")
+
+            success_email, msg_email = processor.remover_duplicatas(output_email_path, relatorio=relatorio)
+            if success_email:
+                print(f"   ✅ E-mail gerado: {output_email_path}")
+            else:
+                print(f"   ❌ Erro E-mail: {msg_email}")
+
+            print(f"   ℹ️  SOAP não gerado (entrada já é formato E-mail)")
 
         print(f"{'='*80}\n")
 
