@@ -1463,7 +1463,11 @@ def relatorio():
         session['total_publicacoes'] = progresso_global[session_id].get('total_publicacoes', 0)
         session['total_duplicatas'] = progresso_global[session_id].get('total_duplicatas', 0)
 
-    # Limpa progresso após exibir
+        # ✅ IMPORTANTE: Salva relatório na sessão antes de limpar
+        # O relatório é necessário para download posterior
+        session['relatorio'] = relatorio
+
+    # Limpa progresso após exibir (mas relatório foi salvo na sessão)
     limpar_progresso(session_id)
 
     return render_template('relatorio.html',
@@ -1503,14 +1507,21 @@ def download():
 
     # Verificação 2: Recupera o relatório com resultados da API
     print(f"\n3️⃣ Recuperando relatório da API...")
-    relatorio = None
-    if session_id and session_id in progresso_global:
-        relatorio = progresso_global[session_id].get('relatorio')
-        print(f"   ✅ Relatório encontrado em progresso_global")
-        if relatorio and 'grupos' in relatorio:
+
+    # Tenta buscar da sessão Flask (onde foi salvo na rota /relatorio)
+    relatorio = session.get('relatorio')
+
+    if relatorio:
+        print(f"   ✅ Relatório encontrado na sessão Flask")
+        if 'grupos' in relatorio:
             print(f"   📊 {len(relatorio['grupos'])} grupos de duplicatas no relatório")
     else:
-        print(f"   ⚠️  session_id={session_id}, em progresso_global={session_id in progresso_global if session_id else False}")
+        # Fallback: tenta buscar de progresso_global (se ainda existir)
+        if session_id and session_id in progresso_global:
+            relatorio = progresso_global[session_id].get('relatorio')
+            print(f"   ✅ Relatório encontrado em progresso_global (fallback)")
+        else:
+            print(f"   ⚠️  Relatório não encontrado nem na sessão nem em progresso_global")
 
     if not relatorio:
         print(f"   ❌ ERRO: Relatório não encontrado - redirecionando para index")
