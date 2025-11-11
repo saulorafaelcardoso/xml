@@ -1077,6 +1077,9 @@ class PublicacaoProcessor:
             if idx < len(publicacoes_elements):
                 result.remove(publicacoes_elements[idx])
 
+        # Formata o XML com indentação para manter o formato legível
+        ET.indent(self.tree, space="  ")
+
         self.tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
         # Mensagem detalhada
@@ -1191,6 +1194,9 @@ class PublicacaoProcessor:
             novo_total = len(publicacoes_elements) - len(indices_remover)
             total_elem.text = str(novo_total)
             print(f"📊 Contador atualizado: {novo_total} publicações")
+
+        # Formata o XML com indentação para manter o formato original
+        ET.indent(self.tree, space="  ")
 
         # Salva o XML com encoding ISO-8859-1 (padrão do formato E-mail)
         self.tree.write(output_path, encoding='ISO-8859-1', xml_declaration=True)
