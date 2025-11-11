@@ -63,6 +63,28 @@
         </a>
     </div>
 
+    {% if tem_duplicatas and (arquivo_soap_limpo or arquivo_email_limpo) %}
+    <div class="alert alert-info" style="background: #d1ecf1; border: 2px solid #0c5460; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #0c5460;">📂 Arquivos Salvos na Pasta: {{ upload_folder }}/</h4>
+        <ul style="margin: 5px 0; color: #0c5460; list-style-position: inside;">
+            <li><strong>Original:</strong> <code>{{ filename }}</code></li>
+            {% if arquivo_soap_limpo %}
+            <li><strong>XML SOAP Limpo:</strong> <code>{{ arquivo_soap_limpo }}</code>
+                <a href="{{ url_for('servir_arquivo_upload', filename=arquivo_soap_limpo) }}" style="color: #0c5460; text-decoration: underline;">[baixar direto]</a>
+            </li>
+            {% endif %}
+            {% if arquivo_email_limpo %}
+            <li><strong>XML E-mail Limpo:</strong> <code>{{ arquivo_email_limpo }}</code>
+                <a href="{{ url_for('servir_arquivo_upload', filename=arquivo_email_limpo) }}" style="color: #0c5460; text-decoration: underline;">[baixar direto]</a>
+            </li>
+            {% endif %}
+        </ul>
+        <p style="margin: 10px 0 0 0; color: #0c5460; font-size: 0.9em;">
+            💡 <strong>Dica:</strong> Todos os arquivos (original e limpos) estão na mesma pasta para facilitar o acesso.
+        </p>
+    </div>
+    {% endif %}
+
     <div class="card">
         <h2>📊 Relatório de Análise</h2>
         <p class="filename">Arquivo: <strong>{{ filename }}</strong></p>
