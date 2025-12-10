@@ -27,6 +27,23 @@ app.config['ALLOWED_EXTENSIONS'] = {'xml'}
 # Cria pastas necessárias
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Lê versão do arquivo VERSION
+def get_version():
+    """Lê a versão do arquivo VERSION"""
+    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+    try:
+        with open(version_file, 'r') as f:
+            return f.read().strip()
+    except:
+        return 'dev'
+
+APP_VERSION = get_version()
+
+# Injeta versão em todos os templates
+@app.context_processor
+def inject_version():
+    return {'app_version': APP_VERSION}
+
 # Dicionário global para armazenar progresso (thread-safe com lock)
 progresso_global = {}
 progresso_lock = threading.Lock()
