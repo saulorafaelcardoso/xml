@@ -1698,7 +1698,7 @@ def download():
 
     return send_file(filepath,
                     as_attachment=True,
-                    download_name=f"{formato}_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
+                    download_name=f"{formato}_s0_sem_duplicatas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xml")
 
 
 @app.route('/uploads/<filename>')
