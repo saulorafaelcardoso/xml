@@ -77,6 +77,10 @@
             <li><strong>XML E-mail Limpo:</strong> <code>{{ arquivo_email_limpo }}</code>
                 <a href="{{ url_for('servir_arquivo_upload', filename=arquivo_email_limpo) }}" style="color: #0c5460; text-decoration: underline;">[baixar direto]</a>
             </li>
+            <li><strong>XML E-mail Limpo (sem ns0):</strong>
+                <a href="{{ url_for('download_sem_ns0', filename=arquivo_email_limpo) }}" style="color: #155724; text-decoration: underline; font-weight: bold;">[baixar sem ns0]</a>
+                <span style="font-size: 0.85em; color: #666;">← Tags limpas</span>
+            </li>
             {% endif %}
         </ul>
         <p style="margin: 10px 0 0 0; color: #0c5460; font-size: 0.9em;">

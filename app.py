@@ -1723,6 +1723,50 @@ def servir_arquivo_upload(filename):
     return send_file(filepath, as_attachment=True)
 
 
+@app.route('/download_sem_ns0/<filename>')
+def download_sem_ns0(filename):
+    """Serve arquivo XML E-mail removendo prefixos ns0: das tags"""
+    import re
+
+    print(f"\n{'='*80}", flush=True)
+    print(f"📂 DOWNLOAD SEM NS0 - LIMPANDO TAGS", flush=True)
+    print(f"{'='*80}", flush=True)
+    print(f"   Arquivo solicitado: {filename}", flush=True)
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+    if not os.path.exists(filepath):
+        print(f"   ❌ Arquivo não encontrado!", flush=True)
+        flash('Arquivo não encontrado', 'error')
+        return redirect(url_for('index'))
+
+    # Lê o conteúdo do arquivo
+    with open(filepath, 'r', encoding='ISO-8859-1') as f:
+        conteudo = f.read()
+
+    # Remove prefixos ns0: das tags (abertura e fechamento)
+    conteudo_limpo = re.sub(r'<ns0:', '<', conteudo)
+    conteudo_limpo = re.sub(r'</ns0:', '</', conteudo_limpo)
+
+    # Remove declaração de namespace xmlns:ns0="Arquivo"
+    conteudo_limpo = re.sub(r'\s*xmlns:ns0="[^"]*"', '', conteudo_limpo)
+
+    # Remove xmlns="Arquivo" também, se existir
+    conteudo_limpo = re.sub(r'\s*xmlns="Arquivo"', '', conteudo_limpo)
+
+    print(f"   ✅ Tags ns0: removidas com sucesso!", flush=True)
+    print(f"{'='*80}\n", flush=True)
+
+    # Retorna como download
+    return Response(
+        conteudo_limpo,
+        mimetype='application/xml',
+        headers={
+            'Content-Disposition': f'attachment; filename=email_limpo_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xml'
+        }
+    )
+
+
 @app.route('/limpar')
 def limpar():
     """Limpa sessão e arquivos temporários"""
