@@ -1255,9 +1255,8 @@ class PublicacaoProcessor:
 
         print(f"   📊 Total de publicações a converter: {len(publicacoes_soap)}\n")
 
-        # Cria novo XML Email
+        # Cria novo XML Email (sem namespace para evitar prefixo ns0:)
         arquivo = ET.Element('Arquivo')
-        arquivo.set('xmlns', 'Arquivo')
 
         for idx, pub_soap in enumerate(publicacoes_soap, 1):
             # Extrai dados da publicação SOAP
