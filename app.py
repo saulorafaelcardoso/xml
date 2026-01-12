@@ -444,10 +444,26 @@ class PublicacaoProcessor:
         """Extrai publicações do formato SOAP"""
         publicacoes = []
 
+        print(f"\n🔍 _extrair_publicacoes_soap INICIADO")
+        print(f"   🌳 Root tag: {self.root.tag}")
+
         # Busca por todas as publicações no XML SOAP
+        print(f"   1. Tentando: .//{'{http://tempuri.org/}publicacao'}")
         pubs = self.root.findall('.//{http://tempuri.org/}publicacao')
+        print(f"      Encontrados: {len(pubs)}")
+
         if not pubs:
+            print(f"   2. Tentando: .//publicacao")
             pubs = self.root.findall('.//publicacao')
+            print(f"      Encontrados: {len(pubs)}")
+
+        # Se ainda não encontrou, lista todos os elementos para debug
+        if not pubs:
+            print(f"\n   ⚠️ NENHUMA PUBLICAÇÃO ENCONTRADA! Listando estrutura XML:")
+            for i, elem in enumerate(self.root.iter()):
+                if i < 20:  # Limita a 20 para não poluir o log
+                    print(f"      {elem.tag}")
+            print(f"      ... (total de elementos no XML)")
 
         for pub in pubs:
             dados = {}
@@ -458,6 +474,7 @@ class PublicacaoProcessor:
             dados['_element'] = pub
             publicacoes.append(dados)
 
+        print(f"   ✅ Total de publicações extraídas: {len(publicacoes)}")
         self.publicacoes = publicacoes
         return publicacoes
 
@@ -1341,19 +1358,39 @@ def index():
 def processar_xml_background(filepath, session_id):
     """Processa XML em background thread"""
     try:
+        print(f"\n{'='*80}")
+        print(f"🚀 INICIANDO PROCESSAMENTO")
+        print(f"{'='*80}")
+        print(f"   📂 Arquivo: {filepath}")
+        print(f"   🔑 Session ID: {session_id}")
+        print(f"   📊 Arquivo existe: {os.path.exists(filepath)}")
+        if os.path.exists(filepath):
+            print(f"   📏 Tamanho: {os.path.getsize(filepath)} bytes")
+        print(f"{'='*80}\n")
+
         atualizar_progresso(session_id, 'Carregando arquivo XML...', 0, 100)
 
         processor = PublicacaoProcessor(filepath, session_id=session_id)
         success, message = processor.carregar_xml()
 
+        print(f"\n📋 RESULTADO DO CARREGAMENTO:")
+        print(f"   ✅ Sucesso: {success}")
+        print(f"   💬 Mensagem: {message}")
+        print(f"   📂 Formato detectado: {processor.formato_entrada}")
+        print(f"   🌳 Root tag: {processor.root.tag if processor.root is not None else 'NONE'}")
+
         if not success:
+            print(f"\n❌ ERRO NO CARREGAMENTO: {message}\n")
             atualizar_progresso(session_id, f'Erro: {message}', 0, 100)
             with progresso_lock:
                 progresso_global[session_id]['erro'] = message
             return
 
         atualizar_progresso(session_id, 'Extraindo publicações...', 10, 100)
+
+        print(f"\n🔍 EXTRAINDO PUBLICAÇÕES...")
         processor.extrair_publicacoes()
+        print(f"   📊 Total extraído: {len(processor.publicacoes)}")
 
         # Adiciona total de publicações ao progresso
         with progresso_lock:
